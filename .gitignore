@@ -1,0 +1,14 @@
+# Unreal Generated Files ######
+
+*/Build
+*/Binaries
+*/DerivedDataCache
+*/Intermediate/
+*/Saved
+*/Content/
+Chainsaw House/Content/StarterContent/
+
+# VS Generated Files ##########
+.vs/
+*.VC.db
+
