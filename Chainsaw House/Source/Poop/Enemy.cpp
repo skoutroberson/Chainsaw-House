@@ -23,13 +23,22 @@ AEnemy::AEnemy()
 	if (meshsmesh.Succeeded())
 	{
 		mesh->SetStaticMesh(meshsmesh.Object);
+		mesh->SetWorldScale3D(FVector(0.6f, 0.6f, 2.0f));
 	}
+
+	
 }
 
 // Called when the game starts or when spawned
 void AEnemy::BeginPlay()
 {
 	Super::BeginPlay();
+
+	// Setting Current Location and InterpLocation the same so that the enemy doesnt move at the start.
+	CurrentLocation = this->GetActorLocation();
+	InterpLocation = CurrentLocation;
+	PlayerLocation = GetWorld()->GetFirstPlayerController()->GetPawn()->GetActorLocation();
+								
 	
 	nodes = new sNode[nMapWidth * nMapHeight];
 	for (int x = 0; x < nMapWidth; x++)
@@ -46,7 +55,7 @@ void AEnemy::BeginPlay()
 			float TempZ = 180.0f;
 			const FVector & Pos = FVector(x * NodeDist, y * NodeDist, TempZ);
 			const FQuat & Qwa = FQuat(0.0f, 0.0f, 0.0f, 0.0f);
-			const FVector & BoxHalfExtent = FVector(30.0f, 30.0f, 0.5f);
+			const FVector & BoxHalfExtent = FVector(50.0f, 50.0f, 0.5f);
 			const FCollisionShape & Boxy = FCollisionShape::MakeBox(BoxHalfExtent);
 			for (TActorIterator<AStaticMeshActor> ActorItr(GetWorld()); ActorItr; ++ActorItr)							// I NEED TO OPTIMIZE THIS SO THAT IT ONLY CHECKS ACTORS CLOSE TO ITS XYZ
 			{
@@ -59,6 +68,7 @@ void AEnemy::BeginPlay()
 				}
 			}
 			//UE_LOG(LogTemp, Warning, TEXT("%d %d %d \n"), x, y, f);
+			//UE_LOG(LogTemp, Warning, TEXT("%d %d"), f, y*nMapWidt);
 		}
 	}
 	// Create connections, in this case nodes are on a regular grid
@@ -107,15 +117,16 @@ void AEnemy::BeginPlay()
 
 	// Manually position the start and end markers so they are not nullptr
 	nodeStart = &nodes[(nMapHeight / 2) * nMapWidth + 1];
-	UE_LOG(LogTemp, Warning, TEXT("%d \n"), nodes[(nMapHeight / 2) * nMapWidth + 1].y);
+	//UE_LOG(LogTemp, Warning, TEXT("%d \n"), nodes[(nMapHeight / 2) * nMapWidth + 1].y);
 	DrawDebugSphere(GetWorld(), FVector(nodes[(nMapHeight / 2) * nMapWidth + 1].x * NodeDist, nodes[(nMapHeight / 2) * nMapWidth + 1].y * NodeDist, 210.f), 30, 10, FColor(255, 0, 0), true);
 	nodeEnd = &nodes[(nMapHeight / 2) * nMapWidth + nMapWidth - 2];
 
-	SolveAStar();
+	//SolveAStar();
 }
 
 void AEnemy::SolveAStar()
 {
+	EnemyPath.Empty();
 	// Reset navigation graph - default all node states
 	for (int x = 0; x < nMapWidth; x++)
 	{
@@ -139,8 +150,11 @@ void AEnemy::SolveAStar()
 
 	// Setup starting conditions
 	sNode *nodeCurrent = nodeStart;
+
 	nodeStart->fLocalGoal = 0.0f;
 	nodeStart->fGlobalGoal = heuristic(nodeStart, nodeEnd);
+
+
 
 	// Add start node to not tested list - this will ensure it gets tested
 	// as the algorithm progresses, newly discovered nodes get added to the
@@ -149,7 +163,7 @@ void AEnemy::SolveAStar()
 	listNotTestedNodes.Add(nodeStart);
 	//listNotTestedNodes.sort([](const sNode* lhs, const sNode* rhs) { return lhs->fGlobalGoal < rhs->fGlobalGoal; });
 	// while (listNotTestedNodes.Num() > 0 && nodeCurrent != nodeEnd) <- this code will find the path faster but it may not be the shortest path
-	while (listNotTestedNodes.Num() > 0)
+	while (listNotTestedNodes.Num() > 0 && nodeCurrent != nodeEnd)
 	{
 		// Sort Untested nodes by global goal, so lowest is first
 		listNotTestedNodes.Sort([](const sNode& lhs, const sNode& rhs){return lhs.fGlobalGoal < rhs.fGlobalGoal;});
@@ -218,11 +232,13 @@ void AEnemy::SolveAStar()
 			{
 				DebugCol = FColor(0, 0, 255);
 			}
-			//DrawDebugSphere(GetWorld(), FVector(x * NodeDist, y * NodeDist, 180.f), 30, 10, DebugCol, true);
-			for (auto n : nodes[y*nMapWidth + x].vecNeighbours)
+			//DrawDebugSphere(GetWorld(), FVector(x * NodeDist, y * NodeDist, 180.f), 30, 10, DebugCol, true); //////////// For drawing node representations
+			
+			//////////////////////////////////////////////////////////////////////		FOR DRAWING GRID LINES /////////////////////////////////
+			/*for (auto n : nodes[y*nMapWidth + x].vecNeighbours)
 			{
 				DrawDebugLine(GetWorld(), FVector(nodes[y*nMapWidth + x].x * NodeDist, nodes[y*nMapWidth + x].y * NodeDist, 180.0f), FVector(n->x * NodeDist, n->y * NodeDist, 180.0f), FColor(255, 255, 0), true);
-			}
+			}*/
 		}
 	}
 	// Draw Path by starting path the end, and following the parent node trail
@@ -232,21 +248,32 @@ void AEnemy::SolveAStar()
 		sNode* p = nodeEnd;
 		while (p->parent != nullptr)
 		{
-			DrawDebugLine(GetWorld(), FVector(p->x * NodeDist, p->y * NodeDist, 182.0f), FVector(p->parent->x * NodeDist, p->parent->y * NodeDist, 182.0f), FColor(255, 0, 0), true);
+			//DrawDebugLine(GetWorld(), FVector(p->x * NodeDist, p->y * NodeDist, 182.0f), FVector(p->parent->x * NodeDist, p->parent->y * NodeDist, 182.0f), FColor(255, 0, 0), true);
 			EnemyPath.Add(p);
 			p = p->parent;
 		}
 	}
-
-	DoneMoving = true;
-}
-
-void AEnemy::MoveEnemy(float DeltaTime)
-{
+	//	Only update InterpLocation if the enemy has a path to the goal node
 	if (EnemyPath.Num() > 0)
 	{
-		sNode* ptr = EnemyPath.Pop();
-		
+		UpdateInterpLocation();
+	}
+}
+
+// Function for updating the next target location for the VInterpTo function
+
+void AEnemy::UpdateInterpLocation()
+{
+	// Only update InterpLocation if the enemy has a path to follow
+	if (EnemyPath.Num() > 0)
+	{
+		//UE_LOG(LogTemp, Warning, TEXT("Moving to next node..."));
+		sNode* InterpNode = EnemyPath.Pop();
+		InterpLocation = FVector(InterpNode->x * NodeDist, InterpNode->y * NodeDist, CurrentLocation.Z);
+	}
+	else
+	{
+		//UE_LOG(LogTemp, Warning, TEXT("No new nodes to move to..."));
 	}
 }
 
@@ -255,13 +282,41 @@ void AEnemy::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 	CurrentLocation = this->GetActorLocation();
-	Goal = FVector(CurrentLocation.X + 100	, CurrentLocation.Y, CurrentLocation.Z);
-
-	if (DoneMoving == true)
+	MoveToPlayerCounter++;
+	
+	// Check if Enemy has made it to the node its moving to
+	if (CurrentLocation.Equals(InterpLocation, 0.1f))
 	{
-		MoveEnemy(DeltaTime);
+		//Only run UpdateInterpLocation() if there is a path to follow
+		if (EnemyPath.Num() > 0)
+		{
+			// Try to update interp location
+			UpdateInterpLocation();
+		}
 	}
-	//this->SetActorLocation(UKismetMathLibrary::VInterpTo(CurrentLocation, Goal, DeltaTime, 1.0f));
 
+	if (MoveToPlayerCounter == 180)
+	{
+		PlayerLocation = GetWorld()->GetFirstPlayerController()->GetPawn()->GetActorLocation();
+		//UE_LOG(LogTemp, Warning, TEXT("%f %f"), PlayerLocation.X, PlayerLocation.Y);
+		if (PlayerLocation.X / NodeDist > 0 && PlayerLocation.X / NodeDist < nMapWidth)
+		{
+			if (PlayerLocation.Y / NodeDist > 0 && PlayerLocation.Y / NodeDist < nMapHeight)
+			{
+				UE_LOG(LogTemp, Warning, TEXT("%d"), EnemyPath.Num());
+				PlayerX = PlayerLocation.X / NodeDist;
+				PlayerY = PlayerLocation.Y / NodeDist;
+				EnemyX = CurrentLocation.X / NodeDist;
+				EnemyY = CurrentLocation.Y / NodeDist;
+				nodeStart = &nodes[EnemyY * nMapWidth + EnemyX];
+				nodeEnd = &nodes[PlayerY * nMapWidth + PlayerX];
+				SolveAStar();
+			}
+		}
+		MoveToPlayerCounter = 0;
+	}
+	
+	this->SetActorLocation(UKismetMathLibrary::VInterpTo_Constant(CurrentLocation, InterpLocation, DeltaTime, fMovementSpeed));
+	//UE_LOG(LogTemp, Warning, TEXT("%f %f %f"), InterpLocation.X, InterpLocation.Y, InterpLocation.Z);
 }
 

@@ -20,6 +20,7 @@ public:
 	AEnemy();
 	FVector Goal;
 	FVector CurrentLocation;
+	FVector PlayerLocation;
 
 protected:
 	// Called when the game starts or when spawned
@@ -31,7 +32,7 @@ public:
 	UPROPERTY(EditAnywhere)
 		class UStaticMeshComponent* mesh;
 
-private:
+public:
 	struct sNode 
 	{
 		bool bObstacle = false;					// Is the node an obstruction?
@@ -44,14 +45,42 @@ private:
 		sNode* parent;							// Node connecting to this node that offers shortest parent
 	};
 
+	//	Graph of nodes for A* (representing 2D grid)
 	sNode *nodes = nullptr;
-	int nMapWidth = 32;
-	int nMapHeight = 32;
-	int NodeDist = 61;							// 61cm = 2ft
+	//	Width of A* grid
+	int nMapWidth = 100;
+	//	Height of A* grid
+	int nMapHeight = 100;
+	//	Distance nodes are from eachother in A* grid
+	int NodeDist = 60;							// 61cm = 2ft
+	//	Starting position of enemy for A*
 	sNode *nodeStart = nullptr;
+	//	Goal position of enemy for A*
 	sNode *nodeEnd = nullptr;
+	//	Finds A* path
 	void SolveAStar();
+	//	Stack of nodes that represent the Enemy path
 	TArray<sNode*> EnemyPath;
-	void MoveEnemy(float DeltaTime);
-	bool DoneMoving = false;
+	//	Enemy's movement speed
+	float fMovementSpeed = 100.0f;
+	//	Enemy's next location to move to
+	FVector InterpLocation;
+	//	If Enemy has reached InterpLocation, try to update InterpLocation
+	void UpdateInterpLocation();
+	//	Prototype counter... Need to change
+	int MoveToPlayerCounter = 0;
+	//	For Integer division of FVector PlayerLocation, Might not need...
+	int PlayerX;
+	//	For Integer division of FVector PlayerLocation, Might not need...
+	int PlayerY;
+	//	For Integer division of FVector EnemyLocation, Might not need...
+	int EnemyX;
+	//	For Integer division of FVector EnemyLocation, Might not need...
+	int EnemyY;
+
+	///////////////////////////// FUNCTIONS / VARIABLES / LOGIC I MAY NEED IN THE FUTURE /////////////////////////////
+	//		roomNode* root;																	Set this to equal player start room.
+	//		(in update function) if (NextRoomToSearch
+
+	sNode* NextRoomToSearch();
 };
