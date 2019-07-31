@@ -37,8 +37,7 @@ void AEnemy::BeginPlay()
 	// Setting Current Location and InterpLocation the same so that the enemy doesnt move at the start.
 	CurrentLocation = this->GetActorLocation();
 	InterpLocation = CurrentLocation;
-	PlayerLocation = GetWorld()->GetFirstPlayerController()->GetPawn()->GetActorLocation();
-								
+	PlayerLocation = GetWorld()->GetFirstPlayerController()->GetPawn()->GetActorLocation();	
 	
 	nodes = new sNode[nMapWidth * nMapHeight];
 	for (int x = 0; x < nMapWidth; x++)
@@ -248,7 +247,7 @@ void AEnemy::SolveAStar()
 		sNode* p = nodeEnd;
 		while (p->parent != nullptr)
 		{
-			//DrawDebugLine(GetWorld(), FVector(p->x * NodeDist, p->y * NodeDist, 182.0f), FVector(p->parent->x * NodeDist, p->parent->y * NodeDist, 182.0f), FColor(255, 0, 0), true);
+			//DrawDebugLine(GetWorld(), FVector(p->x * NodeDist, p->y * NodeDist, 182.0f), FVector(p->parent->x * NodeDist, p->parent->y * NodeDist, 182.0f), FColor(255, 0, 0), true,(1.f));
 			EnemyPath.Add(p);
 			p = p->parent;
 		}
@@ -282,7 +281,7 @@ void AEnemy::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 	CurrentLocation = this->GetActorLocation();
-	MoveToPlayerCounter++;
+	AStarCallCounter++;
 	
 	// Check if Enemy has made it to the node its moving to
 	if (CurrentLocation.Equals(InterpLocation, 0.1f))
@@ -295,7 +294,7 @@ void AEnemy::Tick(float DeltaTime)
 		}
 	}
 
-	if (MoveToPlayerCounter == 180)
+	if (AStarCallCounter == AStarCallTime)
 	{
 		PlayerLocation = GetWorld()->GetFirstPlayerController()->GetPawn()->GetActorLocation();
 		//UE_LOG(LogTemp, Warning, TEXT("%f %f"), PlayerLocation.X, PlayerLocation.Y);
@@ -313,9 +312,11 @@ void AEnemy::Tick(float DeltaTime)
 				SolveAStar();
 			}
 		}
-		MoveToPlayerCounter = 0;
+		AStarCallCounter = 0;
 	}
-	
+	CurrentDirection = (InterpLocation - CurrentLocation);
+	CurrentDirection.Normalize();
+	this->SetActorRotation(FMath::Lerp(GetActorRotation(), CurrentDirection.Rotation(), 0.03f));
 	this->SetActorLocation(UKismetMathLibrary::VInterpTo_Constant(CurrentLocation, InterpLocation, DeltaTime, fMovementSpeed));
 	//UE_LOG(LogTemp, Warning, TEXT("%f %f %f"), InterpLocation.X, InterpLocation.Y, InterpLocation.Z);
 }

@@ -21,6 +21,7 @@ public:
 	FVector Goal;
 	FVector CurrentLocation;
 	FVector PlayerLocation;
+	FVector CurrentDirection;
 
 protected:
 	// Called when the game starts or when spawned
@@ -67,8 +68,10 @@ public:
 	FVector InterpLocation;
 	//	If Enemy has reached InterpLocation, try to update InterpLocation
 	void UpdateInterpLocation();
-	//	Prototype counter... Need to change
-	int MoveToPlayerCounter = 0;
+	//	Counter for calling SolveAStar() every n seconds
+	int AStarCallCounter = 0;
+	//	Variable for checking when AStarCallCounter == AStarCallTime
+	int AStarCallTime = 180;
 	//	For Integer division of FVector PlayerLocation, Might not need...
 	int PlayerX;
 	//	For Integer division of FVector PlayerLocation, Might not need...
@@ -83,4 +86,5 @@ public:
 	//		(in update function) if (NextRoomToSearch
 
 	sNode* NextRoomToSearch();
+
 };
