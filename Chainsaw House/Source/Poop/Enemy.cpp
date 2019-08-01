@@ -43,7 +43,10 @@ void AEnemy::BeginPlay()
 	// Setting Current Location and InterpLocation the same so that the enemy doesnt move at the start.
 	CurrentLocation = this->GetActorLocation();
 	InterpLocation = CurrentLocation;
-	PlayerLocation = GetWorld()->GetFirstPlayerController()->GetPawn()->GetActorLocation();	
+	PlayerActor = GetWorld()->GetFirstPlayerController()->GetPawn();
+	PlayerLocation = PlayerActor->GetActorLocation();
+	// The more actors I can add to this ignore list the better
+	ColParams.AddIgnoredActor(PlayerActor);
 	
 	nodes = new sNode[nMapWidth * nMapHeight];
 	for (int x = 0; x < nMapWidth; x++)
@@ -245,6 +248,7 @@ void AEnemy::SolveAStar()
 			}
 		}
 	}
+	
 	FColor DebugCol;
 	for (int x = 0; x < nMapWidth; x++)
 	{
@@ -269,14 +273,14 @@ void AEnemy::SolveAStar()
 			//DrawDebugSphere(GetWorld(), FVector(x * NodeDist, y * NodeDist, 180.f), 30, 10, DebugCol, true); //////////// For drawing node representations
 			
 			//////////////////////////////////////////////////////////////////////		FOR DRAWING GRID LINES /////////////////////////////////
-			/*for (auto n : nodes[y*nMapWidth + x].vecNeighbours)
+			for (auto n : nodes[y*nMapWidth + x].vecNeighbours)
 			{
 				DrawDebugLine(GetWorld(), FVector(nodes[y*nMapWidth + x].x * NodeDist, nodes[y*nMapWidth + x].y * NodeDist, 180.0f), FVector(n->x * NodeDist, n->y * NodeDist, 180.0f), FColor(255, 255, 0), true);
-			}*/
+			}
 		}
 	}
 	// Draw Path by starting path the end, and following the parent node trail
-	// back to the start - the start node will not have a parent path to follow
+	// I need to make it so that this piece of code only runs if the player can see the enemy
 	if (nodeEnd != nullptr)
 	{
 		sNode* p = nodeEnd;
@@ -287,7 +291,7 @@ void AEnemy::SolveAStar()
 			flag = 0;
 			EnemyPath.Add(p);
 			pTheta = p->parent;
-			DrawDebugLine(GetWorld(), FVector(p->x * NodeDist, p->y * NodeDist, 182.0f), FVector(p->parent->x * NodeDist, p->parent->y * NodeDist, 182.0f), FColor(255, 0, 0), true, (1.f));
+			//DrawDebugLine(GetWorld(), FVector(p->x * NodeDist, p->y * NodeDist, 182.0f), FVector(p->parent->x * NodeDist, p->parent->y * NodeDist, 182.0f), FColor(255, 0, 0), true, (1.f));
 			while (pTheta->parent != nullptr)
 			{
 				pTheta = pTheta->parent;
@@ -313,15 +317,30 @@ void AEnemy::SolveAStar()
 	}
 }
 
-//	Raycasting for enemy to determine if it has a line of start to FVector End position
+//	Raycast for enemy to determine if it has a line of start to FVector End position
 bool AEnemy::LineOfSight(FVector Start, FVector End)
 {
 	if (GetWorld()->LineTraceSingleByChannel(HitStruct, Start, End, ECC_WorldDynamic, ColParams) == true)
 	{
 		//	Check if raycast made it to End location
 		return true;
+		
 	}
 	return false;
+}
+
+// Raycast for enemy to determine if player can see it
+// If Raycast hits nothing then enemy is in player LOS
+bool AEnemy::InPlayerLOS()
+{
+	if (GetWorld()->LineTraceSingleByChannel(HitStruct, CurrentLocation, PlayerLocation, ECC_WorldDynamic, ColParams) == true)
+	{
+		return false;
+	}
+	else
+	{
+		return true;
+	}
 }
 
 // Function for updating the next target location for the VInterpTo function
@@ -363,13 +382,8 @@ bool AEnemy::IsInside(int x1, int y1, int x2, int y2, int x3, int y3, int x, int
 	return A >= (A1 + A2 + A3) - 0.5f && A <= (A1 + A2 + A3) + 0.5f;
 }
 
-// Called every frame
-void AEnemy::Tick(float DeltaTime)
+void AEnemy::ArrivedInterpLoc()
 {
-	Super::Tick(DeltaTime);
-	CurrentLocation = this->GetActorLocation();
-	AStarCallCounter++;
-	
 	// Check if Enemy has made it to the node its moving to
 	if (CurrentLocation.Equals(InterpLocation, 0.1f))
 	{
@@ -380,25 +394,20 @@ void AEnemy::Tick(float DeltaTime)
 			UpdateInterpLocation();
 		}
 	}
-	const FVector Start = CurrentLocation;
-	const FVector End = FVector(CurrentLocation.X + 5000, CurrentLocation.Y, CurrentLocation.Z);
-	ColParams.AddIgnoredActor(this);
+}
 
-	bool bIsHit = GetWorld()->LineTraceSingleByChannel(HitStruct, Start, End, ECC_WorldDynamic, ColParams);
-	if (bIsHit == true)
-	{
-		if (HitStruct.GetActor()->GetActorLocation() == PlayerLocation)
-		{
-			UE_LOG(LogTemp, Warning, TEXT("WOOOOOOOOOOOOOOO"));
-		}
-	}
+// Called every frame
+void AEnemy::Tick(float DeltaTime)
+{
+	Super::Tick(DeltaTime);
+	CurrentLocation = this->GetActorLocation();
+	AStarCallCounter++;
+	ArrivedInterpLoc();
 
-	//	Conditional for calling SolveAStar() every n seconds
+	//	Conditional for calling SolveAStar() every n frames
 	if (AStarCallCounter == AStarCallTime)
 	{
-		PlayerLocation = GetWorld()->GetFirstPlayerController()->GetPawn()->GetActorLocation();
-
-		//UE_LOG(LogTemp, Warning, TEXT("%f %f"), PlayerLocation.X, PlayerLocation.Y);
+		PlayerLocation = PlayerActor->GetActorLocation();
 		
 		if (PlayerLocation.X / NodeDist > 0 && PlayerLocation.X / NodeDist < nMapWidth)
 		{
@@ -430,7 +439,7 @@ void AEnemy::Tick(float DeltaTime)
 				nodeStart = &nodes[EnemyY * nMapWidth + EnemyX];
 				nodeEnd = &nodes[PlayerY * nMapWidth + PlayerX];
 				SolveAStar();
-				UE_LOG(LogTemp, Warning, TEXT("%d"), EnemyPath.Num());
+				//UE_LOG(LogTemp, Warning, TEXT("%d"), EnemyPath.Num());
 			}
 		}
 		AStarCallCounter = 0;
