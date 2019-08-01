@@ -5,11 +5,16 @@
 #include "Components/StaticMeshComponent.h"
 #include "UObject/ConstructorHelpers.h"
 #include "Kismet/KismetMathLibrary.h"
+#include "Kismet/KismetSystemLibrary.h"
 #include "DrawDebugHelpers.h"
 #include "Components/PrimitiveComponent.h"
 #include "WorldCollision.h"
 #include "EngineUtils.h"
 #include "Runtime/Engine/Classes/Engine/StaticMeshActor.h"
+#include "PoopCharacter.h"
+#include "Engine/EngineTypes.h"
+#include "Engine/World.h"
+#include "Physics/GenericPhysicsInterface.h"
 
 // Sets default values
 AEnemy::AEnemy()
@@ -26,7 +31,8 @@ AEnemy::AEnemy()
 		mesh->SetWorldScale3D(FVector(0.6f, 0.6f, 2.0f));
 	}
 
-	
+	//	Inittializing Collision Param for raycasting
+	ColParams.AddIgnoredActor(this);
 }
 
 // Called when the game starts or when spawned
@@ -52,6 +58,7 @@ void AEnemy::BeginPlay()
 			nodes[y * nMapWidth + x].bVisited = false;
 
 			float TempZ = 180.0f;
+			//////////////////////////////////////////////// all of these variables dont need to be const & Im pretty sure
 			const FVector & Pos = FVector(x * NodeDist, y * NodeDist, TempZ);
 			const FQuat & Qwa = FQuat(0.0f, 0.0f, 0.0f, 0.0f);
 			const FVector & BoxHalfExtent = FVector(50.0f, 50.0f, 0.5f);
@@ -178,6 +185,7 @@ void AEnemy::SolveAStar()
 			break;
 		}
 
+		//	Update Vertex
 		nodeCurrent = listNotTestedNodes[0];
 		nodeCurrent->bVisited = true;	// We only explore a node once
 
@@ -198,6 +206,33 @@ void AEnemy::SolveAStar()
 			// as the path source, and set its distance scores as necessary
 			if (fPossiblyLowerGoal < nodeNeighbour->fLocalGoal)
 			{
+				
+				/*//	THETA* IMPLEMENTATION FOR A* PATH SMOOTHING ////////////////////////////////
+				sNode* p = nodeNeightbour;
+				
+				while (p->parent != nullptr)
+				{
+					if (p->parent != NodeCurrent)
+					{
+						FVector Dir = (FVector(p.x * NodeDist, p.y * NodeDist, FloorHeight) - FVector(p->parent.x * NodeDist, p->parent.y * NodeDist, FloorHeight));
+						Dir.Normalize();
+						FRotator RotR = FRotator(0, -90.f, 0);
+						FRotator RotL = FRotator(0, 90.f, 0);
+						FVector RightStart = RotR.RotateVector(Dir) * EnemyHalfWidth;
+						FVector LeftStart = RotL.RotateVector(Dir) * EnemyHalfWidth;
+						if (LineOfSight(RightStart, FVector(p->parent.x * NodeDist, p->parent.y * NodeDist, FloorHeight)))
+						{
+							if (LineOfSight(LeftStart, FVector(p->parent.x * NodeDist, p->parent.y * NodeDist, FloorHeight)))
+							{
+
+							}
+						}
+					}
+					p = p->parent;
+				}*/
+				
+				
+
 				nodeNeighbour->parent = nodeCurrent;
 				nodeNeighbour->fLocalGoal = fPossiblyLowerGoal;
 
@@ -245,13 +280,32 @@ void AEnemy::SolveAStar()
 	if (nodeEnd != nullptr)
 	{
 		sNode* p = nodeEnd;
+		sNode* pTheta;
+		bool flag;
 		while (p->parent != nullptr)
 		{
-			//DrawDebugLine(GetWorld(), FVector(p->x * NodeDist, p->y * NodeDist, 182.0f), FVector(p->parent->x * NodeDist, p->parent->y * NodeDist, 182.0f), FColor(255, 0, 0), true,(1.f));
+			flag = 0;
 			EnemyPath.Add(p);
-			p = p->parent;
+			pTheta = p->parent;
+			DrawDebugLine(GetWorld(), FVector(p->x * NodeDist, p->y * NodeDist, 182.0f), FVector(p->parent->x * NodeDist, p->parent->y * NodeDist, 182.0f), FColor(255, 0, 0), true, (1.f));
+			while (pTheta->parent != nullptr)
+			{
+				pTheta = pTheta->parent;
+				if (!LineOfSight(FVector(p->x*NodeDist,p->y*NodeDist,FloorHeight),FVector(pTheta->x*NodeDist,pTheta->y*NodeDist,FloorHeight)))
+				{
+					p->parent = pTheta;
+					flag = 1;
+				}
+			}
+			if (flag != 1)
+			{
+				p = p->parent;
+			}
 		}
 	}
+
+	
+
 	//	Only update InterpLocation if the enemy has a path to the goal node
 	if (EnemyPath.Num() > 0)
 	{
@@ -259,8 +313,18 @@ void AEnemy::SolveAStar()
 	}
 }
 
-// Function for updating the next target location for the VInterpTo function
+//	Raycasting for enemy to determine if it has a line of start to FVector End position
+bool AEnemy::LineOfSight(FVector Start, FVector End)
+{
+	if (GetWorld()->LineTraceSingleByChannel(HitStruct, Start, End, ECC_WorldDynamic, ColParams) == true)
+	{
+		//	Check if raycast made it to End location
+		return true;
+	}
+	return false;
+}
 
+// Function for updating the next target location for the VInterpTo function
 void AEnemy::UpdateInterpLocation()
 {
 	// Only update InterpLocation if the enemy has a path to follow
@@ -274,6 +338,29 @@ void AEnemy::UpdateInterpLocation()
 	{
 		//UE_LOG(LogTemp, Warning, TEXT("No new nodes to move to..."));
 	}
+}
+
+// Is player inside FOV triangle?
+bool AEnemy::IsInside(int x1, int y1, int x2, int y2, int x3, int y3, int x, int y)
+{
+	auto area = [](int x1, int y1, int x2, int y2, int x3, int y3) 
+	{
+		return abs((x1*(y2 - y3) + x2 * (y3 - y1) + x3 * (y1 - y2)) / 2);
+	};
+	/* Calculate area of triangle ABC */
+	float A = area(x1, y1, x2, y2, x3, y3);
+
+	/* Calculate area of triangle PBC */
+	float A1 = area(x, y, x2, y2, x3, y3);
+
+	/* Calculate area of triangle PAC */
+	float A2 = area(x1, y1, x, y, x3, y3);
+
+	/* Calculate area of triangle PAB */
+	float A3 = area(x1, y1, x2, y2, x, y);
+
+	/* Check if sum of A1, A2 and A3 is same as A */
+	return A >= (A1 + A2 + A3) - 0.5f && A <= (A1 + A2 + A3) + 0.5f;
 }
 
 // Called every frame
@@ -293,16 +380,49 @@ void AEnemy::Tick(float DeltaTime)
 			UpdateInterpLocation();
 		}
 	}
+	const FVector Start = CurrentLocation;
+	const FVector End = FVector(CurrentLocation.X + 5000, CurrentLocation.Y, CurrentLocation.Z);
+	ColParams.AddIgnoredActor(this);
 
+	bool bIsHit = GetWorld()->LineTraceSingleByChannel(HitStruct, Start, End, ECC_WorldDynamic, ColParams);
+	if (bIsHit == true)
+	{
+		if (HitStruct.GetActor()->GetActorLocation() == PlayerLocation)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("WOOOOOOOOOOOOOOO"));
+		}
+	}
+
+	//	Conditional for calling SolveAStar() every n seconds
 	if (AStarCallCounter == AStarCallTime)
 	{
 		PlayerLocation = GetWorld()->GetFirstPlayerController()->GetPawn()->GetActorLocation();
+
 		//UE_LOG(LogTemp, Warning, TEXT("%f %f"), PlayerLocation.X, PlayerLocation.Y);
+		
 		if (PlayerLocation.X / NodeDist > 0 && PlayerLocation.X / NodeDist < nMapWidth)
 		{
 			if (PlayerLocation.Y / NodeDist > 0 && PlayerLocation.Y / NodeDist < nMapHeight)
 			{
-				UE_LOG(LogTemp, Warning, TEXT("%d"), EnemyPath.Num());
+				/*
+				if (FVector::Distance(CurrentLocation, PlayerLocation) < FOVHeight)					//	Will need to take into account Z values too!!!
+				{
+					FOVPointR = FVector(
+						CurrentLocation.X + (UKismetMathLibrary::DegCos(GetActorRotation().Yaw + FOVHalfangle) * FOVMultiplier),
+						CurrentLocation.Y + (UKismetMathLibrary::DegSin(GetActorRotation().Yaw + FOVHalfangle) * FOVMultiplier),
+						CurrentLocation.Z);
+					FOVPointL = FVector(
+						CurrentLocation.X + (UKismetMathLibrary::DegCos(GetActorRotation().Yaw - FOVHalfangle) * FOVMultiplier),
+						CurrentLocation.Y + (UKismetMathLibrary::DegSin(GetActorRotation().Yaw - FOVHalfangle) * FOVMultiplier),
+						CurrentLocation.Z);
+
+					DrawDebugSphere(GetWorld(), FOVPointR, 10, 4, FColor(0, 255, 255), true,+1.0f);
+					DrawDebugSphere(GetWorld(), FOVPointL, 10, 4, FColor(0, 255, 255), true,+1.0f);
+					if (IsInside(CurrentLocation.X,CurrentLocation.Y,FOVPointR.X,FOVPointR.Y,FOVPointL.X,FOVPointL.Y,PlayerLocation.X,PlayerLocation.Y))
+					{
+						//UE_LOG(LogTemp, Warning, TEXT("%d"), EnemyPath.Num());
+					}
+				}*/
 				PlayerX = PlayerLocation.X / NodeDist;
 				PlayerY = PlayerLocation.Y / NodeDist;
 				EnemyX = CurrentLocation.X / NodeDist;
@@ -310,12 +430,13 @@ void AEnemy::Tick(float DeltaTime)
 				nodeStart = &nodes[EnemyY * nMapWidth + EnemyX];
 				nodeEnd = &nodes[PlayerY * nMapWidth + PlayerX];
 				SolveAStar();
+				UE_LOG(LogTemp, Warning, TEXT("%d"), EnemyPath.Num());
 			}
 		}
 		AStarCallCounter = 0;
 	}
 	CurrentDirection = (InterpLocation - CurrentLocation);
-	CurrentDirection.Normalize();
+	CurrentDirection.Normalize();								// Pretty sure I could optimize the way of getting the rotation that I dont need this calculation every time but not sure...
 	this->SetActorRotation(FMath::Lerp(GetActorRotation(), CurrentDirection.Rotation(), 0.03f));
 	this->SetActorLocation(UKismetMathLibrary::VInterpTo_Constant(CurrentLocation, InterpLocation, DeltaTime, fMovementSpeed));
 	//UE_LOG(LogTemp, Warning, TEXT("%f %f %f"), InterpLocation.X, InterpLocation.Y, InterpLocation.Z);
