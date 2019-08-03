@@ -101,7 +101,6 @@ void AEnemy::BeginPlay()
 			{
 				nodes[y * nMapWidth + x].vecNeighbours.push_back(&nodes[(y + 0) * nMapWidth + (x + 1)]);
 			}
-
 			if (y > 0 && x > 0)
 				nodes[y*nMapWidth + x].vecNeighbours.push_back(&nodes[(y - 1) * nMapWidth + (x - 1)]);
 			if (y < nMapHeight - 1 && x>0)
@@ -111,8 +110,14 @@ void AEnemy::BeginPlay()
 			if (y < nMapHeight - 1 && x < nMapWidth - 1)
 				nodes[y*nMapWidth + x].vecNeighbours.push_back(&nodes[(y + 1) * nMapWidth + (x + 1)]);
 
+			for (auto n : nodes[y*nMapWidth + x].vecNeighbours)
+			{
+				DrawDebugLine(GetWorld(), FVector(nodes[y*nMapWidth + x].x * NodeDist, nodes[y*nMapWidth + x].y * NodeDist, 180.0f), FVector(n->x * NodeDist, n->y * NodeDist, 180.0f), FColor(255, 255, 0), true);
+			}
+			
 		}
 	}
+	
 				// We can also connect diagonally
 				/*if (y>0 && x>0)
 					nodes[y*nMapWidth + x].vecNeighbours.push_back(&nodes[(y - 1) * nMapWidth + (x - 1)]);
@@ -172,7 +177,7 @@ void AEnemy::SolveAStar()
 	listNotTestedNodes.Add(nodeStart);
 	//listNotTestedNodes.sort([](const sNode* lhs, const sNode* rhs) { return lhs->fGlobalGoal < rhs->fGlobalGoal; });
 	// while (listNotTestedNodes.Num() > 0 && nodeCurrent != nodeEnd) <- this code will find the path faster but it may not be the shortest path
-	while (listNotTestedNodes.Num() > 0 && nodeCurrent != nodeEnd)
+	while (listNotTestedNodes.Num() > 0)
 	{
 		// Sort Untested nodes by global goal, so lowest is first
 		listNotTestedNodes.Sort([](const sNode& lhs, const sNode& rhs){return lhs.fGlobalGoal < rhs.fGlobalGoal;});
@@ -272,11 +277,7 @@ void AEnemy::SolveAStar()
 			}
 			//DrawDebugSphere(GetWorld(), FVector(x * NodeDist, y * NodeDist, 180.f), 30, 10, DebugCol, true); //////////// For drawing node representations
 			
-			//////////////////////////////////////////////////////////////////////		FOR DRAWING GRID LINES /////////////////////////////////
-			for (auto n : nodes[y*nMapWidth + x].vecNeighbours)
-			{
-				DrawDebugLine(GetWorld(), FVector(nodes[y*nMapWidth + x].x * NodeDist, nodes[y*nMapWidth + x].y * NodeDist, 180.0f), FVector(n->x * NodeDist, n->y * NodeDist, 180.0f), FColor(255, 255, 0), true);
-			}
+			
 		}
 	}
 	// Draw Path by starting path the end, and following the parent node trail
@@ -291,11 +292,11 @@ void AEnemy::SolveAStar()
 			flag = 0;
 			EnemyPath.Add(p);
 			pTheta = p->parent;
-			//DrawDebugLine(GetWorld(), FVector(p->x * NodeDist, p->y * NodeDist, 182.0f), FVector(p->parent->x * NodeDist, p->parent->y * NodeDist, 182.0f), FColor(255, 0, 0), true, (1.f));
+			//DrawDebugLine(GetWorld(), FVector(p->x * NodeDist, p->y * NodeDist, 182.0f), FVector(p->parent->x * NodeDist, p->parent->y * NodeDist, 182.0f), FColor(255, 0, 0), false, 1);
 			while (pTheta->parent != nullptr)
 			{
 				pTheta = pTheta->parent;
-				if (!LineOfSight(FVector(p->x*NodeDist,p->y*NodeDist,FloorHeight),FVector(pTheta->x*NodeDist,pTheta->y*NodeDist,FloorHeight)))
+				if (LineOfSight(FVector(p->x*NodeDist,p->y*NodeDist,FloorHeight),FVector(pTheta->x*NodeDist,pTheta->y*NodeDist,FloorHeight)))
 				{
 					p->parent = pTheta;
 					flag = 1;
@@ -317,16 +318,35 @@ void AEnemy::SolveAStar()
 	}
 }
 
-//	Raycast for enemy to determine if it has a line of start to FVector End position
+//	Raycasts for enemy to determine if it has a clear path from Start to End
 bool AEnemy::LineOfSight(FVector Start, FVector End)
 {
-	if (GetWorld()->LineTraceSingleByChannel(HitStruct, Start, End, ECC_WorldDynamic, ColParams) == true)
+	//	These are for the point translation so we can get points StartR, StartL, EndR, and EndL
+	const float x2 = (cos(CurrentDirection.Rotation().Yaw * (PI / 180)) * EnemyHalfWidth);
+	const float y2 = (sin(CurrentDirection.Rotation().Yaw * (PI / 180)) * EnemyHalfWidth);
+	const float x1 = x2 * cos(270 * (PI / 180)) - y2 * sin(270 * (PI / 180)) + Start.X;
+	const float y1 = y2 * cos(270 * (PI / 180)) + x2 * sin(270 * (PI / 180)) + Start.Y;
+	const float x3 = x2 * cos(90 * (PI / 180)) - y2 * sin(90 * (PI / 180)) + Start.X;
+	const float y3 = y2 * cos(90 * (PI / 180)) + x2 * sin(90 * (PI / 180)) + Start.Y;
+	const float x4 = x2 * cos(90 * (PI / 180)) - y2 * sin(90 * (PI / 180)) + End.X;
+	const float y4 = y2 * cos(90 * (PI / 180)) + x2 * sin(90 * (PI / 180)) + End.Y;
+	const float x5 = x2 * cos(270 * (PI / 180)) - y2 * sin(270 * (PI / 180)) + End.X;
+	const float y5 = y2 * cos(270 * (PI / 180)) + x2 * sin(270 * (PI / 180)) + End.Y;
+	// This is the point that lies on the right side of the enemy's bounding box
+	FVector StartR = FVector(x1, y1, PlayerLocation.Z);
+	// This is the point that lies on the left side of the enemy's bounding box
+	FVector StartL = FVector(x3, y3, PlayerLocation.Z);
+	FVector EndR = FVector(x5, y5, PlayerLocation.Z);
+	FVector EndL = FVector(x4, y4, PlayerLocation.Z);
+	if (GetWorld()->LineTraceSingleByChannel(HitStruct, StartR, EndR, ECC_WorldDynamic, ColParams) == true)
 	{
-		//	Check if raycast made it to End location
-		return true;
-		
+		return false;
 	}
-	return false;
+	else if (GetWorld()->LineTraceSingleByChannel(HitStruct, StartL, EndL, ECC_WorldDynamic, ColParams) == true)
+	{
+		return false;
+	}
+	return true;
 }
 
 // Raycast for enemy to determine if player can see it
@@ -400,19 +420,27 @@ void AEnemy::ArrivedInterpLoc()
 void AEnemy::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
-	CurrentLocation = this->GetActorLocation();
 	AStarCallCounter++;
+	CurrentLocation = this->GetActorLocation();
+	CurrentDirection = (InterpLocation - CurrentLocation);
+	CurrentDirection.Normalize();								// Pretty sure I could optimize the way of getting the rotation that I dont need this calculation every time but not sure...
+	this->SetActorRotation(FMath::Lerp(GetActorRotation(), CurrentDirection.Rotation(), 0.03f));
+	this->SetActorLocation(UKismetMathLibrary::VInterpTo_Constant(CurrentLocation, InterpLocation, DeltaTime, fMovementSpeed));
 	ArrivedInterpLoc();
 
 	//	Conditional for calling SolveAStar() every n frames
 	if (AStarCallCounter == AStarCallTime)
 	{
 		PlayerLocation = PlayerActor->GetActorLocation();
-		
+
 		if (PlayerLocation.X / NodeDist > 0 && PlayerLocation.X / NodeDist < nMapWidth)
 		{
 			if (PlayerLocation.Y / NodeDist > 0 && PlayerLocation.Y / NodeDist < nMapHeight)
 			{
+
+				//DrawDebugLine(GetWorld(), SightR, FVector(x5, y5, PlayerLocation.Z), FColor(255, 0, 0), false, 0.5f);
+				//DrawDebugLine(GetWorld(), SightL, FVector(x4, y4, PlayerLocation.Z), FColor(0, 0, 255), false, 0.5f);
+
 				/*
 				if (FVector::Distance(CurrentLocation, PlayerLocation) < FOVHeight)					//	Will need to take into account Z values too!!!
 				{
@@ -432,22 +460,23 @@ void AEnemy::Tick(float DeltaTime)
 						//UE_LOG(LogTemp, Warning, TEXT("%d"), EnemyPath.Num());
 					}
 				}*/
-				PlayerX = PlayerLocation.X / NodeDist;
-				PlayerY = PlayerLocation.Y / NodeDist;
-				EnemyX = CurrentLocation.X / NodeDist;
-				EnemyY = CurrentLocation.Y / NodeDist;
+				PlayerX = roundf(PlayerLocation.X / NodeDist);
+				PlayerY = roundf(PlayerLocation.Y / NodeDist);
+				EnemyX = roundf(CurrentLocation.X / NodeDist);
+				EnemyY = roundf(CurrentLocation.Y / NodeDist);
 				nodeStart = &nodes[EnemyY * nMapWidth + EnemyX];
 				nodeEnd = &nodes[PlayerY * nMapWidth + PlayerX];
 				SolveAStar();
 				//UE_LOG(LogTemp, Warning, TEXT("%d"), EnemyPath.Num());
+				//DrawDebugLine(GetWorld(), FVector(nodeStart->x * NodeDist, nodeStart->y*NodeDist, FloorHeight), FVector(nodeEnd->x*NodeDist, nodeEnd->y*NodeDist, FloorHeight), FColor(0, 255, 0), false, 1.0);
+				//FVector Dir = (FVector(nodeEnd->x*NodeDist, nodeEnd->y*NodeDist, FloorHeight) - FVector(nodeStart->x * NodeDist, nodeStart->y*NodeDist, FloorHeight));
+				//Dir.RotateAngleAxis(90, FVector(0,0,1));
+				//Dir.Normalize();
+				//DrawDebugLine(GetWorld(), FVector(Dir * 60), FVector(nodeEnd->x, nodeEnd->y,FloorHeight), FColor(0, 255, 0), false, 1.0);
 			}
 		}
 		AStarCallCounter = 0;
 	}
-	CurrentDirection = (InterpLocation - CurrentLocation);
-	CurrentDirection.Normalize();								// Pretty sure I could optimize the way of getting the rotation that I dont need this calculation every time but not sure...
-	this->SetActorRotation(FMath::Lerp(GetActorRotation(), CurrentDirection.Rotation(), 0.03f));
-	this->SetActorLocation(UKismetMathLibrary::VInterpTo_Constant(CurrentLocation, InterpLocation, DeltaTime, fMovementSpeed));
 	//UE_LOG(LogTemp, Warning, TEXT("%f %f %f"), InterpLocation.X, InterpLocation.Y, InterpLocation.Z);
 }
 

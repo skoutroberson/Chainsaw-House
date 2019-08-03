@@ -84,7 +84,7 @@ public:
 	//	Multiplier to make the FOV triangle (2D view frustum) bigger
 	int FOVMultiplier = 1200;
 	//	Enemy's movement speed
-	float fMovementSpeed = 100.0f;
+	float fMovementSpeed = 200.0f;
 	//	Enemy's next location to move to
 	FVector InterpLocation;
 	//	From the POV of the enemy, this is the right point of the FOV triangle (2D view frustum)
