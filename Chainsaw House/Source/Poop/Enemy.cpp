@@ -64,7 +64,7 @@ void AEnemy::BeginPlay()
 			//////////////////////////////////////////////// all of these variables dont need to be const & Im pretty sure
 			const FVector & Pos = FVector(x * NodeDist, y * NodeDist, TempZ);
 			const FQuat & Qwa = FQuat(0.0f, 0.0f, 0.0f, 0.0f);
-			const FVector & BoxHalfExtent = FVector(50.0f, 50.0f, 0.5f);
+			const FVector & BoxHalfExtent = FVector(80.0f, 80.0f, 0.5f);
 			const FCollisionShape & Boxy = FCollisionShape::MakeBox(BoxHalfExtent);
 			for (TActorIterator<AStaticMeshActor> ActorItr(GetWorld()); ActorItr; ++ActorItr)							// I NEED TO OPTIMIZE THIS SO THAT IT ONLY CHECKS ACTORS CLOSE TO ITS XYZ
 			{
@@ -101,14 +101,6 @@ void AEnemy::BeginPlay()
 			{
 				nodes[y * nMapWidth + x].vecNeighbours.push_back(&nodes[(y + 0) * nMapWidth + (x + 1)]);
 			}
-			if (y > 0 && x > 0)
-				nodes[y*nMapWidth + x].vecNeighbours.push_back(&nodes[(y - 1) * nMapWidth + (x - 1)]);
-			if (y < nMapHeight - 1 && x>0)
-				nodes[y*nMapWidth + x].vecNeighbours.push_back(&nodes[(y + 1) * nMapWidth + (x - 1)]);
-			if (y > 0 && x < nMapWidth - 1)
-				nodes[y*nMapWidth + x].vecNeighbours.push_back(&nodes[(y - 1) * nMapWidth + (x + 1)]);
-			if (y < nMapHeight - 1 && x < nMapWidth - 1)
-				nodes[y*nMapWidth + x].vecNeighbours.push_back(&nodes[(y + 1) * nMapWidth + (x + 1)]);
 
 			for (auto n : nodes[y*nMapWidth + x].vecNeighbours)
 			{
@@ -166,7 +158,7 @@ void AEnemy::SolveAStar()
 	sNode *nodeCurrent = nodeStart;
 
 	nodeStart->fLocalGoal = 0.0f;
-	nodeStart->fGlobalGoal = heuristic(nodeStart, nodeEnd);
+	nodeStart->fGlobalGoal = heuristic(nodeStart, nodeEnd) * NodeDist;
 
 
 
@@ -177,7 +169,7 @@ void AEnemy::SolveAStar()
 	listNotTestedNodes.Add(nodeStart);
 	//listNotTestedNodes.sort([](const sNode* lhs, const sNode* rhs) { return lhs->fGlobalGoal < rhs->fGlobalGoal; });
 	// while (listNotTestedNodes.Num() > 0 && nodeCurrent != nodeEnd) <- this code will find the path faster but it may not be the shortest path
-	while (listNotTestedNodes.Num() > 0)
+	while (listNotTestedNodes.Num() > 0 && nodeCurrent != nodeEnd)
 	{
 		// Sort Untested nodes by global goal, so lowest is first
 		listNotTestedNodes.Sort([](const sNode& lhs, const sNode& rhs){return lhs.fGlobalGoal < rhs.fGlobalGoal;});
@@ -200,6 +192,16 @@ void AEnemy::SolveAStar()
 		// Check each of this nodes neighbours...
 		for (auto nodeNeighbour : nodeCurrent->vecNeighbours)
 		{
+			//Theta* logic...
+			//
+			//
+			//
+			//
+			//
+			//
+			//
+			//
+
 			// ... and only if the neighbour is not visited and is
 			// not an obstacle, add it to the NotTested List
 			if (!nodeNeighbour->bVisited && nodeNeighbour->bObstacle == 0)
@@ -292,11 +294,11 @@ void AEnemy::SolveAStar()
 			flag = 0;
 			EnemyPath.Add(p);
 			pTheta = p->parent;
-			//DrawDebugLine(GetWorld(), FVector(p->x * NodeDist, p->y * NodeDist, 182.0f), FVector(p->parent->x * NodeDist, p->parent->y * NodeDist, 182.0f), FColor(255, 0, 0), false, 1);
-			while (pTheta->parent != nullptr)
+			DrawDebugLine(GetWorld(), FVector(p->x * NodeDist, p->y * NodeDist, FloorHeight+1), FVector(p->parent->x * NodeDist, p->parent->y * NodeDist, FloorHeight+1), FColor(0, 0, 255), false, 0.5);
+			/*while (pTheta->parent != nullptr)
 			{
 				pTheta = pTheta->parent;
-				if (LineOfSight(FVector(p->x*NodeDist,p->y*NodeDist,FloorHeight),FVector(pTheta->x*NodeDist,pTheta->y*NodeDist,FloorHeight)))
+				if (ClearPath(FVector(p->x*NodeDist,p->y*NodeDist,FloorHeight),FVector(pTheta->x*NodeDist,pTheta->y*NodeDist,FloorHeight)))
 				{
 					p->parent = pTheta;
 					flag = 1;
@@ -305,7 +307,8 @@ void AEnemy::SolveAStar()
 			if (flag != 1)
 			{
 				p = p->parent;
-			}
+			}*/
+			p = p->parent;
 		}
 	}
 
@@ -319,11 +322,18 @@ void AEnemy::SolveAStar()
 }
 
 //	Raycasts for enemy to determine if it has a clear path from Start to End
-bool AEnemy::LineOfSight(FVector Start, FVector End)
+//	Enemy casts 2 parallel rays from its right and left side to End location.
+bool AEnemy::ClearPath(FVector Start, FVector End)
 {
 	//	These are for the point translation so we can get points StartR, StartL, EndR, and EndL
-	const float x2 = (cos(CurrentDirection.Rotation().Yaw * (PI / 180)) * EnemyHalfWidth);
-	const float y2 = (sin(CurrentDirection.Rotation().Yaw * (PI / 180)) * EnemyHalfWidth);
+	//	(x2,y2) = point EnemyHalfWidth away from origin translated to be at same angle as enemy is facing
+	//	(x1,y1) = rotate point (x2,y2) 270 degrees and then translate to Enemy location so that it lies on Enemy's right bounding box. 
+	//	(x3,y3) = same as above but only rotate 90 degrees.
+	//	(x4,y4) / (x5,y5) = apply same translations from End point so the lines cast parallel
+	FVector Direction = (End - Start);
+	Direction.Normalize();
+	const float x2 = (cos(Direction.Rotation().Yaw * (PI / 180)) * EnemyHalfWidth);
+	const float y2 = (sin(Direction.Rotation().Yaw * (PI / 180)) * EnemyHalfWidth);
 	const float x1 = x2 * cos(270 * (PI / 180)) - y2 * sin(270 * (PI / 180)) + Start.X;
 	const float y1 = y2 * cos(270 * (PI / 180)) + x2 * sin(270 * (PI / 180)) + Start.Y;
 	const float x3 = x2 * cos(90 * (PI / 180)) - y2 * sin(90 * (PI / 180)) + Start.X;
@@ -333,11 +343,13 @@ bool AEnemy::LineOfSight(FVector Start, FVector End)
 	const float x5 = x2 * cos(270 * (PI / 180)) - y2 * sin(270 * (PI / 180)) + End.X;
 	const float y5 = y2 * cos(270 * (PI / 180)) + x2 * sin(270 * (PI / 180)) + End.Y;
 	// This is the point that lies on the right side of the enemy's bounding box
-	FVector StartR = FVector(x1, y1, PlayerLocation.Z);
+	FVector StartR = FVector(x1, y1, FloorHeight);
 	// This is the point that lies on the left side of the enemy's bounding box
-	FVector StartL = FVector(x3, y3, PlayerLocation.Z);
-	FVector EndR = FVector(x5, y5, PlayerLocation.Z);
-	FVector EndL = FVector(x4, y4, PlayerLocation.Z);
+	FVector StartL = FVector(x3, y3, FloorHeight);
+	FVector EndR = FVector(x5, y5, FloorHeight);
+	FVector EndL = FVector(x4, y4, FloorHeight);
+	//DrawDebugLine(GetWorld(), StartL, EndL, FColor(255, 0, 0), false, 0.1f);
+	//DrawDebugLine(GetWorld(), StartR, EndR, FColor(255, 0, 0), false, 0.1f);
 	if (GetWorld()->LineTraceSingleByChannel(HitStruct, StartR, EndR, ECC_WorldDynamic, ColParams) == true)
 	{
 		return false;
@@ -424,7 +436,7 @@ void AEnemy::Tick(float DeltaTime)
 	CurrentLocation = this->GetActorLocation();
 	CurrentDirection = (InterpLocation - CurrentLocation);
 	CurrentDirection.Normalize();								// Pretty sure I could optimize the way of getting the rotation that I dont need this calculation every time but not sure...
-	this->SetActorRotation(FMath::Lerp(GetActorRotation(), CurrentDirection.Rotation(), 0.03f));
+	this->SetActorRotation(FMath::Lerp(GetActorRotation(), CurrentDirection.Rotation(), 0.025f));
 	this->SetActorLocation(UKismetMathLibrary::VInterpTo_Constant(CurrentLocation, InterpLocation, DeltaTime, fMovementSpeed));
 	ArrivedInterpLoc();
 
@@ -466,8 +478,9 @@ void AEnemy::Tick(float DeltaTime)
 				EnemyY = roundf(CurrentLocation.Y / NodeDist);
 				nodeStart = &nodes[EnemyY * nMapWidth + EnemyX];
 				nodeEnd = &nodes[PlayerY * nMapWidth + PlayerX];
-				SolveAStar();
-				//UE_LOG(LogTemp, Warning, TEXT("%d"), EnemyPath.Num());
+				SolveAStar();									///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+				
+				UE_LOG(LogTemp, Warning, TEXT("%d"), EnemyPath.Num());
 				//DrawDebugLine(GetWorld(), FVector(nodeStart->x * NodeDist, nodeStart->y*NodeDist, FloorHeight), FVector(nodeEnd->x*NodeDist, nodeEnd->y*NodeDist, FloorHeight), FColor(0, 255, 0), false, 1.0);
 				//FVector Dir = (FVector(nodeEnd->x*NodeDist, nodeEnd->y*NodeDist, FloorHeight) - FVector(nodeStart->x * NodeDist, nodeStart->y*NodeDist, FloorHeight));
 				//Dir.RotateAngleAxis(90, FVector(0,0,1));

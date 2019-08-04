@@ -63,7 +63,7 @@ public:
 	//	Height of A* grid
 	int nMapHeight = 40;
 	//	Distance nodes are from eachother in A* grid. (61cm = 2ft)
-	int NodeDist = 60;							
+	int NodeDist = 80;							
 	//	Counter for calling SolveAStar() every n seconds
 	int AStarCallCounter = 0;
 	//	Variable for checking when AStarCallCounter == AStarCallTime
@@ -102,7 +102,7 @@ public:
 	//	If Enemy has reached InterpLocation, try to update InterpLocation
 	void UpdateInterpLocation();
 	//	Returns true if raycast from Start collides with End
-	bool LineOfSight(FVector Start, FVector End);
+	bool ClearPath(FVector Start, FVector End);
 	bool InPlayerLOS();
 	void ArrivedInterpLoc();
 	int DistanceToPlayer();
