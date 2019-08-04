@@ -190,68 +190,45 @@ void AEnemy::SolveAStar()
 		nodeCurrent->bVisited = true;	// We only explore a node once
 
 		// Check each of this nodes neighbours...
+		// IT MIGHT BE SMART TO JUST INITIALIZE EVERY NEIGHBOUR THAT WE ARE LOOKING AT INSTEAD OF THE WHOLE GRAPH!!!!!!!!
+		// LOOK AT THETA* ALGORITHM ON WIKI
 		for (auto nodeNeighbour : nodeCurrent->vecNeighbours)
 		{
-			//Theta* logic...
-			//
-			//
-			//
-			//
-			//
-			//
-			//
-			//
-
-			// ... and only if the neighbour is not visited and is
-			// not an obstacle, add it to the NotTested List
 			if (!nodeNeighbour->bVisited && nodeNeighbour->bObstacle == 0)
 			{
-				listNotTestedNodes.Add(nodeNeighbour);
-			}
-			// Calculate the neighbours potential lowest parent distance
-			float fPossiblyLowerGoal = nodeCurrent->fLocalGoal + distance(nodeCurrent, nodeNeighbour);
-
-			// If choosing to path through this node is a lower distance than what 
-			// the neighbour currently has set, update the neighbour to use this node
-			// as the path source, and set its distance scores as necessary
-			if (fPossiblyLowerGoal < nodeNeighbour->fLocalGoal)
-			{
-				
-				/*//	THETA* IMPLEMENTATION FOR A* PATH SMOOTHING ////////////////////////////////
-				sNode* p = nodeNeightbour;
-				
-				while (p->parent != nullptr)
+				// Calculate the neighbours potential lowest parent distance
+				float fPossiblyLowerGoal = nodeCurrent->fLocalGoal + distance(nodeCurrent, nodeNeighbour);
+				// This if statement is very long but I cant make the two vectors before I check if nodeCurrent->parent is not null
+				if (nodeCurrent->parent != nullptr && 
+					ClearPath(FVector(nodeCurrent->parent->x * NodeDist, nodeCurrent->parent->y*NodeDist, FloorHeight), FVector(nodeNeighbour->x*NodeDist, nodeNeighbour->y*NodeDist, FloorHeight)))
 				{
-					if (p->parent != NodeCurrent)
+					fPossiblyLowerGoal = nodeCurrent->parent->fLocalGoal + distance(nodeCurrent->parent, nodeNeighbour);
+					if (fPossiblyLowerGoal < nodeNeighbour->fLocalGoal)
 					{
-						FVector Dir = (FVector(p.x * NodeDist, p.y * NodeDist, FloorHeight) - FVector(p->parent.x * NodeDist, p->parent.y * NodeDist, FloorHeight));
-						Dir.Normalize();
-						FRotator RotR = FRotator(0, -90.f, 0);
-						FRotator RotL = FRotator(0, 90.f, 0);
-						FVector RightStart = RotR.RotateVector(Dir) * EnemyHalfWidth;
-						FVector LeftStart = RotL.RotateVector(Dir) * EnemyHalfWidth;
-						if (LineOfSight(RightStart, FVector(p->parent.x * NodeDist, p->parent.y * NodeDist, FloorHeight)))
-						{
-							if (LineOfSight(LeftStart, FVector(p->parent.x * NodeDist, p->parent.y * NodeDist, FloorHeight)))
-							{
-
-							}
-						}
+						nodeNeighbour->parent = nodeCurrent->parent;
+						nodeNeighbour->fLocalGoal = fPossiblyLowerGoal;
+						nodeNeighbour->fGlobalGoal = nodeNeighbour->fLocalGoal + heuristic(nodeNeighbour, nodeEnd);
 					}
-					p = p->parent;
-				}*/
-				
-				
+				}
+				else
+				{
+					// If choosing to path through this node is a lower distance than what 
+					// the neighbour currently has set, update the neighbour to use this node
+					// as the path source, and set its distance scores as necessary
+					if (fPossiblyLowerGoal < nodeNeighbour->fLocalGoal)
+					{
+						nodeNeighbour->parent = nodeCurrent;
+						nodeNeighbour->fLocalGoal = fPossiblyLowerGoal;
 
-				nodeNeighbour->parent = nodeCurrent;
-				nodeNeighbour->fLocalGoal = fPossiblyLowerGoal;
-
-				// The best path length to the neighbour being tested has changed, so
-				// update the neighbour's score. The heuristic is used to globally bias
-				// the path algorithm, so it knows if its getting better or worse. At some
-				// point the algo will realise this path is worse and abandon it, and then go
-				// and search along the next best path.
-				nodeNeighbour->fGlobalGoal = nodeNeighbour->fLocalGoal + heuristic(nodeNeighbour, nodeEnd);
+						// The best path length to the neighbour being tested has changed, so
+						// update the neighbour's score. The heuristic is used to globally bias
+						// the path algorithm, so it knows if its getting better or worse. At some
+						// point the algo will realise this path is worse and abandon it, and then go
+						// and search along the next best path.
+						nodeNeighbour->fGlobalGoal = nodeNeighbour->fLocalGoal + heuristic(nodeNeighbour, nodeEnd);
+					}
+				}
+				listNotTestedNodes.Add(nodeNeighbour);
 			}
 		}
 	}
@@ -321,8 +298,8 @@ void AEnemy::SolveAStar()
 	}
 }
 
-//	Raycasts for enemy to determine if it has a clear path from Start to End
-//	Enemy casts 2 parallel rays from its right and left side to End location.
+//	Raycasts for a node to determine if it has a clear path from Start to End
+//	Start node casts 2 parallel rays from its right and left side to End location.
 bool AEnemy::ClearPath(FVector Start, FVector End)
 {
 	//	These are for the point translation so we can get points StartR, StartL, EndR, and EndL
