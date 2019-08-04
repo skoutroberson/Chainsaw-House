@@ -20,22 +20,22 @@ class POOP_API AEnemy : public AActor
 	GENERATED_BODY()
 	
 public:	
-	// Sets default values for this actor's properties
 	AEnemy();
 	FVector Goal;
 	FVector CurrentLocation;
 	FVector PlayerLocation;
 	FVector CurrentDirection;
+	AActor* PlayerActor;
 
 protected:
-	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 
 public:	
-	// Called every frame
 	virtual void Tick(float DeltaTime) override;
 	UPROPERTY(EditAnywhere)
-		class UStaticMeshComponent* mesh;
+		class UStaticMeshComponent* EnemyMesh;
+	UPROPERTY(EditAnywhere)
+		class UActorComponent* EnemyBrain;
 
 public:
 	struct sNode 
@@ -53,24 +53,24 @@ public:
 	//	Graph of nodes for A* (representing 2D grid)
 	sNode *nodes = nullptr;
 	//	Starting position of enemy for A*
-	sNode *nodeStart = nullptr;
+	sNode *NodeStart = nullptr;
 	//	Goal position of enemy for A*
-	sNode *nodeEnd = nullptr;
+	sNode *NodeEnd = nullptr;
 	//	Stack of nodes that represent the Enemy path
 	TArray<sNode*> EnemyPath;
 	//	Width of A* grid
-	int nMapWidth = 40;
+	const int GridWidth = 40;
 	//	Height of A* grid
-	int nMapHeight = 40;
+	const int GridHeight = 40;
 	//	Distance nodes are from eachother in A* grid. (61cm = 2ft)
-	int NodeDist = 80;							
-	//	Counter for calling SolveAStar() every n seconds
-	int AStarCallCounter = 0;
+	const int NodeDist = 80;	
 	//	Variable for checking when AStarCallCounter == AStarCallTime
-	int AStarCallTime = 60;
+	const int AStarCallTime = 60;
+	//	Counter for calling SolveAStar() every n frames
+	int AStarCallCounter = 0;
 	//	Will need to change the way I do this when I make 2 stories
-	int FloorHeight = 180;
-	int EnemyHalfWidth = 30;
+	const int FloorHeight = 180;
+	const int EnemyHalfWidth = 30;
 	//	For Integer division of FVector PlayerLocation, Might not need...
 	int PlayerX;
 	//	For Integer division of FVector PlayerLocation, Might not need...
@@ -80,11 +80,11 @@ public:
 	//	For Integer division of FVector EnemyLocation, Might not need...
 	int EnemyY;
 	//	Enemy FOV is 100 degrees
-	int FOVHalfangle = 50;
+	const int FOVHalfangle = 50;
 	//	Multiplier to make the FOV triangle (2D view frustum) bigger
-	int FOVMultiplier = 1200;
+	const int FOVMultiplier = 1200;
 	//	Enemy's movement speed
-	float fMovementSpeed = 200.0f;
+	float EnemySpeed = 200.0f;
 	//	Enemy's next location to move to
 	FVector InterpLocation;
 	//	From the POV of the enemy, this is the right point of the FOV triangle (2D view frustum)
@@ -102,15 +102,16 @@ public:
 	//	If Enemy has reached InterpLocation, try to update InterpLocation
 	void UpdateInterpLocation();
 	//	Returns true if raycast from Start collides with End
-	bool ClearPath(FVector Start, FVector End);
+	bool IsClearPath(FVector Start, FVector End);
 	bool InPlayerLOS();
+	// Gotta think of a better name for this function
 	void ArrivedInterpLoc();
 	int DistanceToPlayer();
 
 	FHitResult HitStruct = FHitResult(ForceInit); ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	FCollisionQueryParams ColParams;
 
-	AActor* PlayerActor;
+	
 
 	///////////////////////////// FUNCTIONS / VARIABLES / LOGIC I MAY NEED IN THE FUTURE /////////////////////////////
 	//		roomNode* root;																	Set this to equal player start room
