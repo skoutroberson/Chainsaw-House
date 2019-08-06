@@ -110,10 +110,10 @@ void APoopCharacter::BeginPlay()
 		Mesh1P->SetHiddenInGame(false, true);
 	}
 
-	FVector Location(61.0f, 976.0f, 300.0f);
-	FRotator Rotation(0.0f, 0.0f, 0.0f);
-	FActorSpawnParameters SpawnInfo;
-	GetWorld()->SpawnActor<AEnemy>(Location, Rotation, SpawnInfo);
+	//FVector Location(61.0f, 976.0f, 300.0f);
+	//FRotator Rotation(0.0f, 0.0f, 0.0f);
+	//FActorSpawnParameters SpawnInfo;
+	//GetWorld()->SpawnActor<AEnemy>(Location, Rotation, SpawnInfo);
 }
 
 //////////////////////////////////////////////////////////////////////////

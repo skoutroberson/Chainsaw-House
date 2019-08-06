@@ -34,8 +34,7 @@ public:
 	virtual void Tick(float DeltaTime) override;
 	UPROPERTY(EditAnywhere)
 		class UStaticMeshComponent* EnemyMesh;
-	UPROPERTY(EditAnywhere)
-		class UActorComponent* EnemyBrain;
+	
 
 public:
 	struct sNode 
