@@ -57,23 +57,31 @@ void UEnemyBrain::BeginPlay()
 				nodes[f].bVisited = false;
 				//DrawDebugSphere(GetWorld(), FVector(nodes[f].x, nodes[f].y, FloorHeight * z), 10, 4, FColor(255, 0, 0), true);
 
-				//////////////////////////////////////////////// all of these variables dont need to be const & Im pretty sure
-				const FVector & Pos = FVector(x * NodeDist, y * NodeDist, z * FloorHeight + 1);
-				const FQuat & Qwa = FQuat(0.0f, 0.0f, 0.0f, 0.0f);
-				const FVector & BoxHalfExtent = FVector(EnemyHalfWidth + 1, EnemyHalfWidth, 0.5f);
-				const FCollisionShape & Boxy = FCollisionShape::MakeBox(BoxHalfExtent);
-				for (TActorIterator<AStaticMeshActor> ActorItr(GetWorld()); ActorItr; ++ActorItr)							// I NEED TO OPTIMIZE THIS SO THAT IT ONLY CHECKS ACTORS CLOSE TO ITS XYZ
+
+				if (!(GetWorld()->LineTraceSingleByChannel(HitStruct, FVector(nodes[f].x,nodes[f].y,nodes[f].z), FVector(nodes[f].x,nodes[f].y,nodes[f].z - 1), ECC_WorldDynamic, RayCollisionParams)))
 				{
-					// Same as with the Object Iterator, access the subclass instance with the * or -> operators.
-					AStaticMeshActor *SMActor = *ActorItr;
-					if (ActorItr->GetStaticMeshComponent()->OverlapComponent(Pos, Qwa, Boxy)) // && ActorItr->GetStackMeshComponent
-					{
-						DrawDebugSphere(GetWorld(), FVector(nodes[f].x, nodes[f].y, nodes[f].z + 10), 30, 20, FColor(255, 100, 50), true);
-						nodes[f].bObstacle = true;
-					}
+					nodes[f].bObstacle = true;
 				}
-				//UE_LOG(LogTemp, Warning, TEXT("%d %d %d \n"), x, y, f);
-				//UE_LOG(LogTemp, Warning, TEXT("%d %d"), f, y*nMapWidt);
+				else
+				{
+					//////////////////////////////////////////////// all of these variables dont need to be const & Im pretty sure
+					const FVector & Pos = FVector(x * NodeDist, y * NodeDist, z * FloorHeight + 1);
+					const FQuat & Qwa = FQuat(0.0f, 0.0f, 0.0f, 0.0f);
+					const FVector & BoxHalfExtent = FVector(EnemyHalfWidth + 1, EnemyHalfWidth, 0.5f);
+					const FCollisionShape & Boxy = FCollisionShape::MakeBox(BoxHalfExtent);
+					for (TActorIterator<AStaticMeshActor> ActorItr(GetWorld()); ActorItr; ++ActorItr)							// I NEED TO OPTIMIZE THIS SO THAT IT ONLY CHECKS ACTORS CLOSE TO ITS XYZ
+					{
+						// Same as with the Object Iterator, access the subclass instance with the * or -> operators.
+						AStaticMeshActor *SMActor = *ActorItr;
+						if (ActorItr->GetStaticMeshComponent()->OverlapComponent(Pos, Qwa, Boxy)) // && ActorItr->GetStackMeshComponent
+						{
+							DrawDebugSphere(GetWorld(), FVector(nodes[f].x, nodes[f].y, nodes[f].z + 10), 30, 20, FColor(255, 100, 50), true);
+							nodes[f].bObstacle = true;
+						}
+					}
+					//UE_LOG(LogTemp, Warning, TEXT("%d %d %d \n"), x, y, f);
+					//UE_LOG(LogTemp, Warning, TEXT("%d %d"), f, y*nMapWidt);
+				}
 			}
 		}
 	}
@@ -146,7 +154,7 @@ void UEnemyBrain::TickComponent(float DeltaTime, ELevelTick TickType, FActorComp
 	EnemyFloor = GetEnemyFloor();
 	EnemyDirection = (InterpLocation - EnemyLocation);
 	EnemyDirection.Normalize();								// Pretty sure I could optimize the way of getting the rotation that I dont need this calculation every time but not sure...
-	Enemy->SetActorRotation(FMath::Lerp(Enemy->GetActorRotation(), EnemyDirection.Rotation(), 0.025f));
+	Enemy->SetActorRotation(FMath::Lerp(Enemy->GetActorRotation(), FRotator(Enemy->GetActorRotation().Pitch, EnemyDirection.Rotation().Yaw, Enemy->GetActorRotation().Roll), 0.025f));
 	Enemy->SetActorLocation(UKismetMathLibrary::VInterpTo_Constant(EnemyLocation, InterpLocation, DeltaTime, EnemySpeed));
 	ArrivedInterpLoc();
 
@@ -182,14 +190,22 @@ void UEnemyBrain::TickComponent(float DeltaTime, ELevelTick TickType, FActorComp
 						//UE_LOG(LogTemp, Warning, TEXT("%d"), EnemyPath.Num());
 					}
 				}*/
-				PlayerX = roundf(PlayerLocation.X / NodeDist);
-				PlayerY = roundf(PlayerLocation.Y / NodeDist);
-				PlayerZ = roundf(PlayerLocation.Z / FloorHeight);
-				EnemyX = roundf(EnemyLocation.X / NodeDist);
-				EnemyY = roundf(EnemyLocation.Y / NodeDist);
-				NodeStart = &nodes[EnemyY * GridWidth + EnemyX + EnemyFloor * GridWidth * GridHeight];
-				NodeEnd = &nodes[PlayerY * GridWidth + PlayerX + PlayerZ * GridWidth * GridHeight];
-				SolveThetaStar();									///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+				if (EnemyLocation.Z > 105.1 && EnemyLocation.Z < FloorHeight + 104.9)
+				{
+					UE_LOG(LogTemp, Warning, TEXT("%f"), EnemyLocation.Z);
+				}
+				else
+				{
+					PlayerX = roundf(PlayerLocation.X / NodeDist);
+					PlayerY = roundf(PlayerLocation.Y / NodeDist);
+					PlayerZ = roundf(PlayerLocation.Z / FloorHeight);
+					EnemyX = roundf(EnemyLocation.X / NodeDist);
+					EnemyY = roundf(EnemyLocation.Y / NodeDist);
+					NodeStart = &nodes[EnemyY * GridWidth + EnemyX + EnemyFloor * GridWidth * GridHeight];
+					NodeEnd = &nodes[PlayerY * GridWidth + PlayerX + PlayerZ * GridWidth * GridHeight];
+					SolveThetaStar();
+				}
+													///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 				//UE_LOG(LogTemp, Warning, TEXT("%d"), EnemyPath.Num());
 				//DrawDebugLine(GetWorld(), FVector(NodeStart->x * NodeDist, NodeStart->y*NodeDist, FloorHeight), FVector(NodeEnd->x*NodeDist, NodeEnd->y*NodeDist, FloorHeight), FColor(0, 255, 0), false, 1.0);
@@ -294,7 +310,7 @@ void UEnemyBrain::SolveThetaStar()
 				float fPossiblyLowerGoal = nodeCurrent->fLocalGoal + distance(nodeCurrent, nodeNeighbour);
 				// This if statement is very long but I cant make the two vectors before I check if nodeCurrent->parent is not null
 				if (nodeCurrent->parent != nullptr &&
-					IsClearPath(FVector(nodeCurrent->parent->x, nodeCurrent->parent->y, nodeCurrent->z), FVector(nodeNeighbour->x, nodeNeighbour->y, nodeNeighbour->z)))
+					IsClearPath(FVector(nodeCurrent->parent->x, nodeCurrent->parent->y, nodeCurrent->parent->z), FVector(nodeNeighbour->x, nodeNeighbour->y, nodeNeighbour->z)))
 				{
 					fPossiblyLowerGoal = nodeCurrent->parent->fLocalGoal + distance(nodeCurrent->parent, nodeNeighbour);
 					if (fPossiblyLowerGoal < nodeNeighbour->fLocalGoal)
@@ -364,7 +380,7 @@ void UEnemyBrain::SolveThetaStar()
 		while (p->parent != nullptr)
 		{
 			EnemyPath.Add(p);
-			//DrawDebugLine(GetWorld(), FVector(p->x * NodeDist, p->y * NodeDist, FloorHeight+1), FVector(p->parent->x * NodeDist, p->parent->y * NodeDist, FloorHeight+1), FColor(0, 0, 255), false, 0.5);
+			DrawDebugLine(GetWorld(), FVector(p->x, p->y, p->z + 1), FVector(p->parent->x, p->parent->y, p->parent->z), FColor(255, 0, 0), false, 0.5);
 			p = p->parent;
 		}
 	}
@@ -436,7 +452,11 @@ bool UEnemyBrain::IsClearPath(FVector Start, FVector End)
 	FVector EndL = FVector(x4, y4, End.Z + 1);
 	//DrawDebugLine(GetWorld(), StartL, EndL, FColor(255, 0, 0), false, 0.1f);
 	//DrawDebugLine(GetWorld(), StartR, EndR, FColor(255, 0, 0), false, 0.1f);
-	if (GetWorld()->LineTraceSingleByChannel(HitStruct, StartR, EndR, ECC_WorldDynamic, RayCollisionParams) == true)
+	if (StartR.Z != EndR.Z)
+	{
+		return false;
+	}
+	else if (GetWorld()->LineTraceSingleByChannel(HitStruct, StartR, EndR, ECC_WorldDynamic, RayCollisionParams) == true)
 	{
 		return false;
 	}
