@@ -43,6 +43,7 @@ public:
 		float fLocalGoal;						// Distance to goal if we took the alternative
 		int x;									// Nodes position in 3D space
 		int y;
+		int z;
 		vector<ThetaNode*> NeighbourNodes;			// Connections to neighbours
 		ThetaNode* parent;							// Node connecting to this node that offers shortest parent
 	};
@@ -53,7 +54,11 @@ public:
 	FVector EnemyLocation;
 	FVector PlayerLocation;
 	FVector EnemyDirection;
+	int EnemyFloor;
+	int GetEnemyFloor();
 
+	ThetaNode* Stairs0Bot;
+	ThetaNode* Stairs1Top;
 	//	Graph of nodes for A* (representing 2D grid)
 	ThetaNode *nodes = nullptr;
 	//	Starting position of enemy for A*
@@ -66,19 +71,22 @@ public:
 	const int GridWidth = 40;
 	//	Height of A* grid
 	const int GridHeight = 40;
+	const int NumFloors = 3;
 	//	Distance nodes are from eachother in A* grid. (61cm = 2ft)
-	const int NodeDist = 80;
+	const int NodeDist = 40;
 	//	Variable for checking when AStarCallCounter == AStarCallTime
 	const int AStarCallTime = 60;
 	//	Counter for calling SolveAStar() every n frames
 	int AStarCallCounter = 0;
 	//	Will need to change the way I do this when I make 2 stories
-	const int FloorHeight = 180;
+	const int FloorHeight = 280;
 	const int EnemyHalfWidth = 30;
+	const int EnemyHalfHeight = 105;
 	//	For Integer division of FVector PlayerLocation, Might not need...
 	int PlayerX;
 	//	For Integer division of FVector PlayerLocation, Might not need...
 	int PlayerY;
+	int PlayerZ;
 	//	For Integer division of FVector EnemyLocation, Might not need...
 	int EnemyX;
 	//	For Integer division of FVector EnemyLocation, Might not need...

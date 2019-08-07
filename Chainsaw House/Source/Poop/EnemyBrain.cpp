@@ -40,77 +40,92 @@ void UEnemyBrain::BeginPlay()
 	// The more actors I can add to this ignore list the better
 	RayCollisionParams.AddIgnoredActor(Player);
 
-	nodes = new ThetaNode[GridWidth * GridHeight];
-	for (int x = 0; x < GridWidth; x++)
+	nodes = new ThetaNode[GridWidth * GridHeight * 3];
+	for(int z = 0; z < 3; z++)
 	{
-		for (int y = 0; y < GridHeight; y++)
+		const int GridOffset = z * GridWidth * GridHeight;
+		for (int x = 0; x < GridWidth; x++)
 		{
-			int f = y * GridWidth + x;
-			nodes[y * GridWidth + x].x = x * NodeDist;
-			nodes[y * GridWidth + x].y = y * NodeDist;
-			nodes[y * GridWidth + x].bObstacle = false;
-			nodes[y * GridWidth + x].parent = nullptr;
-			nodes[y * GridWidth + x].bVisited = false;
-
-			float TempZ = 180.0f;
-			//////////////////////////////////////////////// all of these variables dont need to be const & Im pretty sure
-			const FVector & Pos = FVector(x * NodeDist, y * NodeDist, TempZ);
-			const FQuat & Qwa = FQuat(0.0f, 0.0f, 0.0f, 0.0f);
-			const FVector & BoxHalfExtent = FVector(EnemyHalfWidth, EnemyHalfWidth, 0.5f);
-			const FCollisionShape & Boxy = FCollisionShape::MakeBox(BoxHalfExtent);
-			for (TActorIterator<AStaticMeshActor> ActorItr(GetWorld()); ActorItr; ++ActorItr)							// I NEED TO OPTIMIZE THIS SO THAT IT ONLY CHECKS ACTORS CLOSE TO ITS XYZ
+			for (int y = 0; y < GridHeight; y++)
 			{
-				// Same as with the Object Iterator, access the subclass instance with the * or -> operators.
-				AStaticMeshActor *SMActor = *ActorItr;
-				if (ActorItr->GetStaticMeshComponent()->OverlapComponent(Pos, Qwa, Boxy))
+				const int f = (y * GridWidth + x) + GridOffset;
+				nodes[f].x = x * NodeDist;
+				nodes[f].y = y * NodeDist;
+				nodes[f].z = z * FloorHeight;
+				nodes[f].bObstacle = false;
+				nodes[f].parent = nullptr;
+				nodes[f].bVisited = false;
+				//DrawDebugSphere(GetWorld(), FVector(nodes[f].x, nodes[f].y, FloorHeight * z), 10, 4, FColor(255, 0, 0), true);
+
+				//////////////////////////////////////////////// all of these variables dont need to be const & Im pretty sure
+				const FVector & Pos = FVector(x * NodeDist, y * NodeDist, z * FloorHeight + 1);
+				const FQuat & Qwa = FQuat(0.0f, 0.0f, 0.0f, 0.0f);
+				const FVector & BoxHalfExtent = FVector(EnemyHalfWidth + 1, EnemyHalfWidth, 0.5f);
+				const FCollisionShape & Boxy = FCollisionShape::MakeBox(BoxHalfExtent);
+				for (TActorIterator<AStaticMeshActor> ActorItr(GetWorld()); ActorItr; ++ActorItr)							// I NEED TO OPTIMIZE THIS SO THAT IT ONLY CHECKS ACTORS CLOSE TO ITS XYZ
 				{
-					//DrawDebugSphere(GetWorld(), FVector(x * NodeDist, y * NodeDist, 800), 30, 10, FColor(255, 100, 50), true);
-					nodes[y * GridWidth + x].bObstacle = true;
+					// Same as with the Object Iterator, access the subclass instance with the * or -> operators.
+					AStaticMeshActor *SMActor = *ActorItr;
+					if (ActorItr->GetStaticMeshComponent()->OverlapComponent(Pos, Qwa, Boxy)) // && ActorItr->GetStackMeshComponent
+					{
+						DrawDebugSphere(GetWorld(), FVector(nodes[f].x, nodes[f].y, nodes[f].z + 10), 30, 20, FColor(255, 100, 50), true);
+						nodes[f].bObstacle = true;
+					}
 				}
+				//UE_LOG(LogTemp, Warning, TEXT("%d %d %d \n"), x, y, f);
+				//UE_LOG(LogTemp, Warning, TEXT("%d %d"), f, y*nMapWidt);
 			}
-			//UE_LOG(LogTemp, Warning, TEXT("%d %d %d \n"), x, y, f);
-			//UE_LOG(LogTemp, Warning, TEXT("%d %d"), f, y*nMapWidt);
 		}
 	}
-
+	
 	// Create connections, in this case nodes are on a regular grid
-	for (int x = 0; x < GridWidth; x++)
+	for (int z = 0; z < 3; z++)
 	{
-		for (int y = 0; y < GridHeight; y++)
+		const int GridOffset = z * GridWidth * GridHeight;
+		for (int x = 0; x < GridWidth; x++)
 		{
-			if (y > 0)
+			for (int y = 0; y < GridHeight; y++)
 			{
-				nodes[y * GridWidth + x].NeighbourNodes.push_back(&nodes[(y - 1) * GridWidth + (x + 0)]);
-			}
-			if (y < GridHeight - 1)
-			{
-				nodes[y * GridWidth + x].NeighbourNodes.push_back(&nodes[(y + 1) * GridWidth + (x + 0)]);
-			}
-			if (x > 0)
-			{
-				nodes[y * GridWidth + x].NeighbourNodes.push_back(&nodes[(y + 0) * GridWidth + (x - 1)]);
-			}
-			if (x < GridWidth - 1)
-			{
-				nodes[y * GridWidth + x].NeighbourNodes.push_back(&nodes[(y + 0) * GridWidth + (x + 1)]);
-			}
+				const int f = (y * GridWidth + x) + GridOffset;
+				if (y > 0)
+					nodes[f].NeighbourNodes.push_back(&nodes[((y - 1) * GridWidth + (x + 0)) + GridOffset]);
+				if (y < GridHeight - 1)
+					nodes[f].NeighbourNodes.push_back(&nodes[((y + 1) * GridWidth + (x + 0)) + GridOffset]);
+				if (x > 0)
+					nodes[f].NeighbourNodes.push_back(&nodes[((y + 0) * GridWidth + (x - 1)) + GridOffset]);
+				if (x < GridWidth - 1)
+					nodes[f].NeighbourNodes.push_back(&nodes[((y + 0) * GridWidth + (x + 1)) + GridOffset]);
 
-			if (y > 0 && x > 0)
-				nodes[y*GridWidth + x].NeighbourNodes.push_back(&nodes[(y - 1) * GridWidth + (x - 1)]);
-			if (y < GridHeight - 1 && x>0)
-				nodes[y*GridWidth + x].NeighbourNodes.push_back(&nodes[(y + 1) * GridWidth + (x - 1)]);
-			if (y > 0 && x < GridWidth - 1)
-				nodes[y*GridWidth + x].NeighbourNodes.push_back(&nodes[(y - 1) * GridWidth + (x + 1)]);
-			if (y < GridHeight - 1 && x < GridWidth - 1)
-				nodes[y*GridWidth + x].NeighbourNodes.push_back(&nodes[(y + 1) * GridWidth + (x + 1)]);
+				/*
+				if (y > 0 && x > 0)
+					nodes[f].NeighbourNodes.push_back(&nodes[((y - 1) * GridWidth + (x - 1)) + GridOffset]);
+				if (y < GridHeight - 1 && x>0)
+					nodes[f].NeighbourNodes.push_back(&nodes[((y + 1) * GridWidth + (x - 1)) + GridOffset]);
+				if (y > 0 && x < GridWidth - 1)
+					nodes[f].NeighbourNodes.push_back(&nodes[((y - 1) * GridWidth + (x + 1)) + GridOffset]);
+				if (y < GridHeight - 1 && x < GridWidth - 1)
+					nodes[f].NeighbourNodes.push_back(&nodes[((y + 1) * GridWidth + (x + 1)) + GridOffset]);
+				*/
+				for (auto n : nodes[f].NeighbourNodes)
+				{
+					DrawDebugLine(GetWorld(), FVector(nodes[f].x, nodes[f].y, nodes[f].z), FVector(n->x, n->y, n->z), FColor(100 * z, 200, 210/(z+1)), true);
+				}
 
-			for (auto n : nodes[y*GridWidth + x].NeighbourNodes)
-			{
-				DrawDebugLine(GetWorld(), FVector(nodes[y*GridWidth + x].x, nodes[y*GridWidth + x].y, 180.0f), FVector(n->x, n->y, 180.0f), FColor(255, 255, 0), true);
 			}
-
 		}
 	}
+
+
+	Stairs0Bot = &nodes[10 * GridWidth + 14];
+	int GridOffset = ((Stairs0Bot->z + FloorHeight) / FloorHeight) * GridWidth * GridHeight;
+	Stairs1Top = &nodes[21 * GridWidth + 14 + GridOffset];
+	nodes[10 * GridWidth + 14].NeighbourNodes.push_back(&nodes[21 * GridWidth + 14 + GridOffset]);
+	nodes[21 * GridWidth + 14 + GridOffset].NeighbourNodes.push_back(&nodes[10 * GridWidth + 14]);
+	DrawDebugLine(GetWorld(), FVector(Stairs0Bot->x, Stairs0Bot->y, Stairs0Bot->z), FVector(Stairs1Top->x, Stairs1Top->y, Stairs1Top->z), FColor(255, 0, 255), true);
+
+
+	DrawDebugSphere(GetWorld(), FVector(Stairs0Bot->x, Stairs0Bot->y, Stairs0Bot->z + 20), 30, 10, FColor(255, 0, 255), true);
+	DrawDebugSphere(GetWorld(), FVector(Stairs1Top->x, Stairs1Top->y, Stairs1Top->z + 20), 30, 10, FColor(255, 0, 255), true);
 
 	// Manually position the start and end markers so they are not nullptr
 	NodeStart = &nodes[(GridHeight / 2) * GridWidth + 1];
@@ -128,6 +143,7 @@ void UEnemyBrain::TickComponent(float DeltaTime, ELevelTick TickType, FActorComp
 
 	AStarCallCounter++;
 	EnemyLocation = Enemy->GetActorLocation();
+	EnemyFloor = GetEnemyFloor();
 	EnemyDirection = (InterpLocation - EnemyLocation);
 	EnemyDirection.Normalize();								// Pretty sure I could optimize the way of getting the rotation that I dont need this calculation every time but not sure...
 	Enemy->SetActorRotation(FMath::Lerp(Enemy->GetActorRotation(), EnemyDirection.Rotation(), 0.025f));
@@ -168,10 +184,11 @@ void UEnemyBrain::TickComponent(float DeltaTime, ELevelTick TickType, FActorComp
 				}*/
 				PlayerX = roundf(PlayerLocation.X / NodeDist);
 				PlayerY = roundf(PlayerLocation.Y / NodeDist);
+				PlayerZ = roundf(PlayerLocation.Z / FloorHeight);
 				EnemyX = roundf(EnemyLocation.X / NodeDist);
 				EnemyY = roundf(EnemyLocation.Y / NodeDist);
-				NodeStart = &nodes[EnemyY * GridWidth + EnemyX];
-				NodeEnd = &nodes[PlayerY * GridWidth + PlayerX];
+				NodeStart = &nodes[EnemyY * GridWidth + EnemyX + EnemyFloor * GridWidth * GridHeight];
+				NodeEnd = &nodes[PlayerY * GridWidth + PlayerX + PlayerZ * GridWidth * GridHeight];
 				SolveThetaStar();									///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 				//UE_LOG(LogTemp, Warning, TEXT("%d"), EnemyPath.Num());
@@ -187,27 +204,49 @@ void UEnemyBrain::TickComponent(float DeltaTime, ELevelTick TickType, FActorComp
 
 }
 
+int UEnemyBrain::GetEnemyFloor()
+{
+	int EnemyZ = roundf(EnemyLocation.Z);
+	if (EnemyZ < FloorHeight)
+	{
+		return 0;
+	}
+	else if (EnemyZ > FloorHeight && EnemyZ < FloorHeight * 2)
+	{
+		return 1;
+	}
+	else
+	{
+		return 2;
+	}
+}
+
 void UEnemyBrain::SolveThetaStar()
 {
 	EnemyPath.Empty();
 	// Reset navigation graph - default all node states. I dont need to do this every single time, it helps for debugging but I should change this once this is locked down.
-	for (int x = 0; x < GridWidth; x++)
-	{
-		for (int y = 0; y < GridHeight; y++)
+	for(int z = 0; z < NumFloors; z++)
+	{ 
+		const int GridOffset = z * GridWidth * GridHeight;
+		for (int x = 0; x < GridWidth; x++)
 		{
-			nodes[y*GridWidth + x].bVisited = false;
-			nodes[y*GridWidth + x].fGlobalGoal = INFINITY;
-			nodes[y*GridWidth + x].fLocalGoal = INFINITY;
-			nodes[y*GridWidth + x].parent = nullptr;
+			for (int y = 0; y < GridHeight; y++)
+			{
+				const int f = (y * GridWidth + x) + GridOffset;
+				nodes[f].bVisited = false;
+				nodes[f].fGlobalGoal = INFINITY;
+				nodes[f].fLocalGoal = INFINITY;
+				nodes[f].parent = nullptr;
+			}
 		}
 	}
-
 	auto distance = [](ThetaNode* a, ThetaNode* b) // For convenience
 	{
 		return sqrtf((a->x - b->x)*(a->x - b->x) + (a->y - b->y)*(a->y - b->y));
 	};
 	auto heuristic = [distance](ThetaNode* a, ThetaNode* b)	//
 	{
+		// Needs
 		return distance(a, b);
 	};
 
@@ -255,7 +294,7 @@ void UEnemyBrain::SolveThetaStar()
 				float fPossiblyLowerGoal = nodeCurrent->fLocalGoal + distance(nodeCurrent, nodeNeighbour);
 				// This if statement is very long but I cant make the two vectors before I check if nodeCurrent->parent is not null
 				if (nodeCurrent->parent != nullptr &&
-					IsClearPath(FVector(nodeCurrent->parent->x, nodeCurrent->parent->y, FloorHeight), FVector(nodeNeighbour->x, nodeNeighbour->y, FloorHeight)))
+					IsClearPath(FVector(nodeCurrent->parent->x, nodeCurrent->parent->y, nodeCurrent->z), FVector(nodeNeighbour->x, nodeNeighbour->y, nodeNeighbour->z)))
 				{
 					fPossiblyLowerGoal = nodeCurrent->parent->fLocalGoal + distance(nodeCurrent->parent, nodeNeighbour);
 					if (fPossiblyLowerGoal < nodeNeighbour->fLocalGoal)
@@ -348,7 +387,7 @@ void UEnemyBrain::UpdateInterpLocation()
 	{
 		//UE_LOG(LogTemp, Warning, TEXT("Moving to next node..."));
 		ThetaNode* InterpNode = EnemyPath.Pop();
-		InterpLocation = FVector(InterpNode->x, InterpNode->y, EnemyLocation.Z);
+		InterpLocation = FVector(InterpNode->x, InterpNode->y, InterpNode->z + 105);
 	}
 	else
 	{
@@ -390,11 +429,11 @@ bool UEnemyBrain::IsClearPath(FVector Start, FVector End)
 	const float x5 = x2 * cos(270 * (PI / 180)) - y2 * sin(270 * (PI / 180)) + End.X;
 	const float y5 = y2 * cos(270 * (PI / 180)) + x2 * sin(270 * (PI / 180)) + End.Y;
 	// This is the point that lies on the right side of the enemy's bounding box
-	FVector StartR = FVector(x1, y1, FloorHeight);
+	FVector StartR = FVector(x1, y1, Start.Z + 1);
 	// This is the point that lies on the left side of the enemy's bounding box
-	FVector StartL = FVector(x3, y3, FloorHeight);
-	FVector EndR = FVector(x5, y5, FloorHeight);
-	FVector EndL = FVector(x4, y4, FloorHeight);
+	FVector StartL = FVector(x3, y3, Start.Z + 1);
+	FVector EndR = FVector(x5, y5, End.Z + 1);
+	FVector EndL = FVector(x4, y4, End.Z + 1);
 	//DrawDebugLine(GetWorld(), StartL, EndL, FColor(255, 0, 0), false, 0.1f);
 	//DrawDebugLine(GetWorld(), StartR, EndR, FColor(255, 0, 0), false, 0.1f);
 	if (GetWorld()->LineTraceSingleByChannel(HitStruct, StartR, EndR, ECC_WorldDynamic, RayCollisionParams) == true)
