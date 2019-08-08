@@ -34,6 +34,7 @@ void UEnemyBrain::BeginPlay()
 	Super::BeginPlay();
 
 	EnemyLocation = Enemy->GetActorLocation();
+	EnemyRotation = Enemy->GetActorRotation();
 	InterpLocation = EnemyLocation;
 	Player = GetWorld()->GetFirstPlayerController()->GetPawn();
 	PlayerLocation = Player->GetActorLocation();
@@ -61,6 +62,7 @@ void UEnemyBrain::BeginPlay()
 				if (!(GetWorld()->LineTraceSingleByChannel(HitStruct, FVector(nodes[f].x,nodes[f].y,nodes[f].z), FVector(nodes[f].x,nodes[f].y,nodes[f].z - 1), ECC_WorldDynamic, RayCollisionParams)))
 				{
 					nodes[f].bObstacle = true;
+					//DrawDebugSphere(GetWorld(), FVector(nodes[f].x, nodes[f].y, nodes[f].z + 10), 10, 4, FColor(255, 100, 50), true);
 				}
 				else
 				{
@@ -75,7 +77,7 @@ void UEnemyBrain::BeginPlay()
 						AStaticMeshActor *SMActor = *ActorItr;
 						if (ActorItr->GetStaticMeshComponent()->OverlapComponent(Pos, Qwa, Boxy)) // && ActorItr->GetStackMeshComponent
 						{
-							DrawDebugSphere(GetWorld(), FVector(nodes[f].x, nodes[f].y, nodes[f].z + 10), 30, 20, FColor(255, 100, 50), true);
+							//DrawDebugSphere(GetWorld(), FVector(nodes[f].x, nodes[f].y, nodes[f].z + 10), 10, 4, FColor(255, 100, 50), true);
 							nodes[f].bObstacle = true;
 						}
 					}
@@ -114,9 +116,10 @@ void UEnemyBrain::BeginPlay()
 				if (y < GridHeight - 1 && x < GridWidth - 1)
 					nodes[f].NeighbourNodes.push_back(&nodes[((y + 1) * GridWidth + (x + 1)) + GridOffset]);
 				*/
+				
 				for (auto n : nodes[f].NeighbourNodes)
 				{
-					DrawDebugLine(GetWorld(), FVector(nodes[f].x, nodes[f].y, nodes[f].z), FVector(n->x, n->y, n->z), FColor(100 * z, 200, 210/(z+1)), true);
+					DrawDebugLine(GetWorld(), FVector(nodes[f].x, nodes[f].y, nodes[f].z + 1), FVector(n->x, n->y, n->z + 1), FColor(100 * z, 200, 210/(z+1)), true);
 				}
 
 			}
@@ -125,15 +128,28 @@ void UEnemyBrain::BeginPlay()
 
 
 	Stairs0Bot = &nodes[10 * GridWidth + 14];
-	int GridOffset = ((Stairs0Bot->z + FloorHeight) / FloorHeight) * GridWidth * GridHeight;
-	Stairs1Top = &nodes[21 * GridWidth + 14 + GridOffset];
-	nodes[10 * GridWidth + 14].NeighbourNodes.push_back(&nodes[21 * GridWidth + 14 + GridOffset]);
-	nodes[21 * GridWidth + 14 + GridOffset].NeighbourNodes.push_back(&nodes[10 * GridWidth + 14]);
-	DrawDebugLine(GetWorld(), FVector(Stairs0Bot->x, Stairs0Bot->y, Stairs0Bot->z), FVector(Stairs1Top->x, Stairs1Top->y, Stairs1Top->z), FColor(255, 0, 255), true);
+	int GridOffset0 = ((Stairs0Bot->z + FloorHeight) / FloorHeight) * GridWidth * GridHeight;
+	Stairs1Bot = &nodes[30 * GridWidth + 30 + GridOffset0];
+	Stairs1Top = &nodes[40 * GridWidth + 30 + 2 * GridOffset0];
+	Stairs0Top = &nodes[21 * GridWidth + 14 + GridOffset0];
 
+	nodes[30 * GridWidth + 30 + GridOffset0].NeighbourNodes.push_back(&nodes[40 * GridWidth + 30 + 2 * GridOffset0]);
+	nodes[40 * GridWidth + 30 + 2 * GridOffset0].NeighbourNodes.push_back(&nodes[30 * GridWidth + 30 + GridOffset0]);
+	nodes[30 * GridWidth + 30 + GridOffset0].bObstacle = false;
+	nodes[40 * GridWidth + 30 + 2 * GridOffset0].bObstacle = false;
 
-	DrawDebugSphere(GetWorld(), FVector(Stairs0Bot->x, Stairs0Bot->y, Stairs0Bot->z + 20), 30, 10, FColor(255, 0, 255), true);
-	DrawDebugSphere(GetWorld(), FVector(Stairs1Top->x, Stairs1Top->y, Stairs1Top->z + 20), 30, 10, FColor(255, 0, 255), true);
+	nodes[10 * GridWidth + 14].NeighbourNodes.push_back(&nodes[21 * GridWidth + 14 + GridOffset0]);
+	nodes[21 * GridWidth + 14 + GridOffset0].NeighbourNodes.push_back(&nodes[10 * GridWidth + 14]);
+	//DrawDebugLine(GetWorld(), FVector(Stairs0Bot->x, Stairs0Bot->y, Stairs0Bot->z), FVector(Stairs0Top->x, Stairs0Top->y, Stairs0Top->z), FColor(255, 0, 255), true);
+	//DrawDebugLine(GetWorld(), FVector(Stairs1Bot->x, Stairs1Bot->y, Stairs1Bot->z), FVector(Stairs1Top->x, Stairs1Top->y, Stairs1Top->z), FColor(255, 0, 255), true);
+
+	//DrawDebugSphere(GetWorld(), FVector(Stairs1Bot->x, Stairs1Bot->y, Stairs1Bot->z + 20), 30, 10, FColor(255, 0, 255), true);
+	//DrawDebugSphere(GetWorld(), FVector(Stairs1Top->x, Stairs1Top->y, Stairs1Top->z + 20), 30, 10, FColor(255, 0, 255), true);
+
+	//DrawDebugSphere(GetWorld(), FVector(Stairs0Bot->x, Stairs0Bot->y, Stairs0Bot->z + 20), 30, 10, FColor(255, 0, 255), true);
+	//DrawDebugSphere(GetWorld(), FVector(Stairs0Top->x, Stairs0Top->y, Stairs0Top->z + 20), 30, 10, FColor(255, 0, 255), true);
+
+	//IsClearPath(FVector(nodeCurrent->parent->x, nodeCurrent->parent->y, nodeCurrent->parent->z), FVector(nodeNeighbour->x, nodeNeighbour->y, nodeNeighbour->z))
 
 	// Manually position the start and end markers so they are not nullptr
 	NodeStart = &nodes[(GridHeight / 2) * GridWidth + 1];
@@ -151,10 +167,11 @@ void UEnemyBrain::TickComponent(float DeltaTime, ELevelTick TickType, FActorComp
 
 	AStarCallCounter++;
 	EnemyLocation = Enemy->GetActorLocation();
+	EnemyRotation = Enemy->GetActorRotation();
 	EnemyFloor = GetEnemyFloor();
 	EnemyDirection = (InterpLocation - EnemyLocation);
 	EnemyDirection.Normalize();								// Pretty sure I could optimize the way of getting the rotation that I dont need this calculation every time but not sure...
-	Enemy->SetActorRotation(FMath::Lerp(Enemy->GetActorRotation(), FRotator(Enemy->GetActorRotation().Pitch, EnemyDirection.Rotation().Yaw, Enemy->GetActorRotation().Roll), 0.025f));
+	Enemy->SetActorRotation(FMath::Lerp(EnemyRotation, FRotator(EnemyRotation.Pitch, EnemyDirection.Rotation().Yaw, EnemyRotation.Roll), 0.03f));
 	Enemy->SetActorLocation(UKismetMathLibrary::VInterpTo_Constant(EnemyLocation, InterpLocation, DeltaTime, EnemySpeed));
 	ArrivedInterpLoc();
 
@@ -190,9 +207,11 @@ void UEnemyBrain::TickComponent(float DeltaTime, ELevelTick TickType, FActorComp
 						//UE_LOG(LogTemp, Warning, TEXT("%d"), EnemyPath.Num());
 					}
 				}*/
-				if (EnemyLocation.Z > 105.1 && EnemyLocation.Z < FloorHeight + 104.9)
+				EnemyZ = roundf(EnemyLocation.Z);
+				//UE_LOG(LogTemp, Warning, TEXT("%d"), EnemyZ % FloorHeight);
+				if (EnemyZ % FloorHeight != 105)
 				{
-					UE_LOG(LogTemp, Warning, TEXT("%f"), EnemyLocation.Z);
+					//UE_LOG(LogTemp, Warning, TEXT("%f"), EnemyLocation.Z);
 				}
 				else
 				{
@@ -203,7 +222,9 @@ void UEnemyBrain::TickComponent(float DeltaTime, ELevelTick TickType, FActorComp
 					EnemyY = roundf(EnemyLocation.Y / NodeDist);
 					NodeStart = &nodes[EnemyY * GridWidth + EnemyX + EnemyFloor * GridWidth * GridHeight];
 					NodeEnd = &nodes[PlayerY * GridWidth + PlayerX + PlayerZ * GridWidth * GridHeight];
+					//DrawDebugSphere(GetWorld(), FVector(NodeEnd->x, NodeEnd->y, NodeEnd->z), 6, 4, FColor(255, 0, 0), true);
 					SolveThetaStar();
+
 				}
 													///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -265,7 +286,7 @@ void UEnemyBrain::SolveThetaStar()
 		// Needs
 		return distance(a, b);
 	};
-
+	
 	// Setup starting conditions
 	ThetaNode *nodeCurrent = NodeStart;
 
@@ -298,6 +319,10 @@ void UEnemyBrain::SolveThetaStar()
 		//	Update Vertex
 		nodeCurrent = listNotTestedNodes[0];
 		nodeCurrent->bVisited = true;	// We only explore a node once
+
+
+		//DrawDebugSphere(GetWorld(), FVector(nodeCurrent->x, nodeCurrent->y, nodeCurrent->z), 10, 4, FColor(0, 255, 255), false, 0.5f); //FOR DEBUGGING HEURISTIC IT SHOULD CHECK EVERY NODE ON EVERY FLOOR
+
 
 		// Check each of this nodes neighbours...
 		// IT MIGHT BE SMART TO JUST INITIALIZE EVERY NEIGHBOUR THAT WE ARE LOOKING AT INSTEAD OF THE WHOLE GRAPH!!!!!!!!
@@ -380,7 +405,7 @@ void UEnemyBrain::SolveThetaStar()
 		while (p->parent != nullptr)
 		{
 			EnemyPath.Add(p);
-			DrawDebugLine(GetWorld(), FVector(p->x, p->y, p->z + 1), FVector(p->parent->x, p->parent->y, p->parent->z), FColor(255, 0, 0), false, 0.5);
+			DrawDebugLine(GetWorld(), FVector(p->x, p->y, p->z + 2), FVector(p->parent->x, p->parent->y, p->parent->z + 2), FColor(255, 0, 0), false, 0.5);
 			p = p->parent;
 		}
 	}
@@ -452,11 +477,12 @@ bool UEnemyBrain::IsClearPath(FVector Start, FVector End)
 	FVector EndL = FVector(x4, y4, End.Z + 1);
 	//DrawDebugLine(GetWorld(), StartL, EndL, FColor(255, 0, 0), false, 0.1f);
 	//DrawDebugLine(GetWorld(), StartR, EndR, FColor(255, 0, 0), false, 0.1f);
-	if (StartR.Z != EndR.Z)
+	/*if (StartR.Z != EndR.Z)
 	{
 		return false;
 	}
-	else if (GetWorld()->LineTraceSingleByChannel(HitStruct, StartR, EndR, ECC_WorldDynamic, RayCollisionParams) == true)
+	else */
+	if (GetWorld()->LineTraceSingleByChannel(HitStruct, StartR, EndR, ECC_WorldDynamic, RayCollisionParams) == true)
 	{
 		return false;
 	}

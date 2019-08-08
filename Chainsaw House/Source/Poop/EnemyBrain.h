@@ -52,13 +52,18 @@ public:
 	AActor* Player;
 
 	FVector EnemyLocation;
+	FRotator EnemyRotation;
 	FVector PlayerLocation;
 	FVector EnemyDirection;
 	int EnemyFloor;
 	int GetEnemyFloor();
 
 	ThetaNode* Stairs0Bot;
+	ThetaNode* Stairs0Top;
+	ThetaNode* Stairs1Bot;
 	ThetaNode* Stairs1Top;
+	ThetaNode* Stairs2Bottom;
+	ThetaNode* Stairs2Top;
 	//	Graph of nodes for A* (representing 2D grid)
 	ThetaNode *nodes = nullptr;
 	//	Starting position of enemy for A*
@@ -67,10 +72,13 @@ public:
 	ThetaNode *NodeEnd = nullptr;
 	//	Stack of nodes that represent the Enemy path
 	TArray<ThetaNode*> EnemyPath;
+
+	TArray<ThetaNode*> Stairs;
+
 	//	Width of A* grid
-	const int GridWidth = 40;
+	const int GridWidth = 60;
 	//	Height of A* grid
-	const int GridHeight = 40;
+	const int GridHeight = 60;
 	const int NumFloors = 3;
 	//	Distance nodes are from eachother in A* grid. (61cm = 2ft)
 	const int NodeDist = 40;
@@ -91,6 +99,7 @@ public:
 	int EnemyX;
 	//	For Integer division of FVector EnemyLocation, Might not need...
 	int EnemyY;
+	int EnemyZ;
 	//	Enemy FOV is 100 degrees
 	const int FOVHalfangle = 50;
 	//	Multiplier to make the FOV triangle (2D view frustum) bigger
