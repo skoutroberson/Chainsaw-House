@@ -58,6 +58,8 @@ public:
 	int EnemyFloor;
 	int GetEnemyFloor();
 
+	const int StairHalfLength = 200;
+
 	ThetaNode* Stairs0Bot;
 	ThetaNode* Stairs0Top;
 	ThetaNode* Stairs1Bot;
@@ -72,8 +74,6 @@ public:
 	ThetaNode *NodeEnd = nullptr;
 	//	Stack of nodes that represent the Enemy path
 	TArray<ThetaNode*> EnemyPath;
-
-	TArray<ThetaNode*> Stairs;
 
 	//	Width of A* grid
 	const int GridWidth = 60;

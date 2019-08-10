@@ -126,29 +126,87 @@ void UEnemyBrain::BeginPlay()
 		}
 	}
 
+	
+	// For connecting stair nodes automatically :)
+	for (TActorIterator<AStaticMeshActor> ActorItr(GetWorld()); ActorItr; ++ActorItr)
+	{
+		// Same as with the Object Iterator, access the subclass instance with the * or -> operators.
+		AStaticMeshActor *SMActor = *ActorItr;
+		if (ActorItr->GetName().Contains("Stair",ESearchCase::IgnoreCase,ESearchDir::FromStart))
+		{
+			const FVector Location = ActorItr->GetActorLocation();
+			const float YawRotation = ActorItr->GetActorRotation().Yaw;
+			int TopX = Location.X / NodeDist;
+			int TopY = Location.Y / NodeDist;
+			int TopZ = (Location.Z + FloorHeight) / FloorHeight;
+			int BotX = Location.X / NodeDist;
+			int BotY = Location.Y / NodeDist;
+			int BotZ = Location.Z / FloorHeight;
+			
+			if (YawRotation < 0.1f && YawRotation > -0.1)
+			{
+				BotX += 5;
+				TopX -= 5;
+			}
+			else if (YawRotation > 89.9f && YawRotation < 90.1f)
+			{
+				BotY += 5;
+				TopY -= 5;
+				
+			}
+			else if (YawRotation < -179.9f && YawRotation > -180.1f)
+			{
+				BotX -= 5;
+				TopX += 5;
+			}
+			else if (YawRotation > -90.1f && YawRotation < -89.9f)
+			{
+				BotY -= 5;
+				TopY += 5;
+			}
 
-	Stairs0Bot = &nodes[10 * GridWidth + 14];
+			nodes[BotY * GridWidth + BotX + BotZ * GridWidth*GridHeight].NeighbourNodes.push_back(&nodes[TopY * GridWidth + TopX + (TopZ * GridWidth*GridHeight)]);
+			nodes[TopY * GridWidth + TopX + TopZ * GridWidth*GridHeight].NeighbourNodes.push_back(&nodes[BotY * GridWidth + BotX + (BotZ * GridWidth*GridHeight)]);
+			nodes[BotY * GridWidth + BotX + BotZ * GridWidth*GridHeight].bObstacle = false;
+			nodes[TopY * GridWidth + TopX + TopZ * GridWidth*GridHeight].bObstacle = false;
+			UE_LOG(LogTemp, Warning, TEXT("%f"), YawRotation);
+			DrawDebugSphere(GetWorld(), FVector(BotX * NodeDist, BotY * NodeDist, BotZ * FloorHeight + 20), 10, 4, FColor(255, 255, 0), true);
+			DrawDebugSphere(GetWorld(), FVector(TopX * NodeDist, TopY * NodeDist, TopZ * FloorHeight + 20), 10, 4, FColor(255, 0, 255), true);
+		}
+	}
+
+	Stairs0Bot = &nodes[11 * GridWidth + 14];
 	int GridOffset0 = ((Stairs0Bot->z + FloorHeight) / FloorHeight) * GridWidth * GridHeight;
 	Stairs1Bot = &nodes[30 * GridWidth + 30 + GridOffset0];
 	Stairs1Top = &nodes[40 * GridWidth + 30 + 2 * GridOffset0];
 	Stairs0Top = &nodes[21 * GridWidth + 14 + GridOffset0];
+	UE_LOG(LogTemp, Warning, TEXT("%d %d %d"), Stairs0Bot->x / NodeDist, Stairs0Bot->y / NodeDist, Stairs0Bot->z / FloorHeight);
+	UE_LOG(LogTemp, Warning, TEXT("%d %d %d"), Stairs0Top->x / NodeDist, Stairs0Top->y / NodeDist, Stairs0Top->z / FloorHeight);
+	/*
+	
+
+	UE_LOG(LogTemp, Warning, TEXT("%d %d %d"), Stairs0Bot->x, Stairs0Bot->y, Stairs0Bot->z);
+	UE_LOG(LogTemp, Warning, TEXT("%d %d %d"), Stairs0Top->x, Stairs0Top->y, Stairs0Top->z);
+
 
 	nodes[30 * GridWidth + 30 + GridOffset0].NeighbourNodes.push_back(&nodes[40 * GridWidth + 30 + 2 * GridOffset0]);
 	nodes[40 * GridWidth + 30 + 2 * GridOffset0].NeighbourNodes.push_back(&nodes[30 * GridWidth + 30 + GridOffset0]);
 	nodes[30 * GridWidth + 30 + GridOffset0].bObstacle = false;
 	nodes[40 * GridWidth + 30 + 2 * GridOffset0].bObstacle = false;
+	nodes[11 * GridWidth + 14].bObstacle = false;
+	nodes[21 * GridWidth + 14 + GridOffset0].bObstacle = false;
 
 	nodes[10 * GridWidth + 14].NeighbourNodes.push_back(&nodes[21 * GridWidth + 14 + GridOffset0]);
 	nodes[21 * GridWidth + 14 + GridOffset0].NeighbourNodes.push_back(&nodes[10 * GridWidth + 14]);
 	//DrawDebugLine(GetWorld(), FVector(Stairs0Bot->x, Stairs0Bot->y, Stairs0Bot->z), FVector(Stairs0Top->x, Stairs0Top->y, Stairs0Top->z), FColor(255, 0, 255), true);
 	//DrawDebugLine(GetWorld(), FVector(Stairs1Bot->x, Stairs1Bot->y, Stairs1Bot->z), FVector(Stairs1Top->x, Stairs1Top->y, Stairs1Top->z), FColor(255, 0, 255), true);
 
-	//DrawDebugSphere(GetWorld(), FVector(Stairs1Bot->x, Stairs1Bot->y, Stairs1Bot->z + 20), 30, 10, FColor(255, 0, 255), true);
-	//DrawDebugSphere(GetWorld(), FVector(Stairs1Top->x, Stairs1Top->y, Stairs1Top->z + 20), 30, 10, FColor(255, 0, 255), true);
+	DrawDebugSphere(GetWorld(), FVector(Stairs1Bot->x, Stairs1Bot->y, Stairs1Bot->z + 10), 10, 6, FColor(255, 0, 255), true);
+	DrawDebugSphere(GetWorld(), FVector(Stairs1Top->x, Stairs1Top->y, Stairs1Top->z + 10), 10, 6, FColor(255, 0, 255), true);
 
-	//DrawDebugSphere(GetWorld(), FVector(Stairs0Bot->x, Stairs0Bot->y, Stairs0Bot->z + 20), 30, 10, FColor(255, 0, 255), true);
-	//DrawDebugSphere(GetWorld(), FVector(Stairs0Top->x, Stairs0Top->y, Stairs0Top->z + 20), 30, 10, FColor(255, 0, 255), true);
-
+	DrawDebugSphere(GetWorld(), FVector(Stairs0Bot->x, Stairs0Bot->y, Stairs0Bot->z + 10), 10, 6, FColor(255, 0, 255), true);
+	DrawDebugSphere(GetWorld(), FVector(Stairs0Top->x, Stairs0Top->y, Stairs0Top->z + 10), 10, 6, FColor(255, 0, 255), true);
+*/
 	//IsClearPath(FVector(nodeCurrent->parent->x, nodeCurrent->parent->y, nodeCurrent->parent->z), FVector(nodeNeighbour->x, nodeNeighbour->y, nodeNeighbour->z))
 
 	// Manually position the start and end markers so they are not nullptr
@@ -477,12 +535,11 @@ bool UEnemyBrain::IsClearPath(FVector Start, FVector End)
 	FVector EndL = FVector(x4, y4, End.Z + 1);
 	//DrawDebugLine(GetWorld(), StartL, EndL, FColor(255, 0, 0), false, 0.1f);
 	//DrawDebugLine(GetWorld(), StartR, EndR, FColor(255, 0, 0), false, 0.1f);
-	/*if (StartR.Z != EndR.Z)
+	if (StartR.Z != EndR.Z)
 	{
 		return false;
 	}
-	else */
-	if (GetWorld()->LineTraceSingleByChannel(HitStruct, StartR, EndR, ECC_WorldDynamic, RayCollisionParams) == true)
+	else if (GetWorld()->LineTraceSingleByChannel(HitStruct, StartR, EndR, ECC_WorldDynamic, RayCollisionParams) == true)
 	{
 		return false;
 	}
