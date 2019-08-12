@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
+#include "Engine/World.h"
 #include "PoopCharacter.generated.h"
 
 class UInputComponent;
@@ -98,6 +99,8 @@ protected:
 	void Sprint();
 	void StopSprinting();
 	float SprintSpeedMultiplier;
+	void Interact();
+	void StopInteract();
 	
 
 	/**
@@ -143,5 +146,18 @@ public:
 	FORCEINLINE class USkeletalMeshComponent* GetMesh1P() const { return Mesh1P; }
 	/** Returns FirstPersonCameraComponent subobject **/
 	FORCEINLINE class UCameraComponent* GetFirstPersonCameraComponent() const { return FirstPersonCameraComponent; }
+
+	FHitResult HitStruct = FHitResult(ForceInit); ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	FCollisionQueryParams RayCollisionParams;
+	AActor* HitActor;
+
+	FVector LastPlayerLocation;
+	FVector PlayerLocation;
+	bool IsInteractingWithDoor = false;
+	bool IsMoving = false;
+	void MoveDoor();
+	void StoppedMovingForward();
+
+	public: virtual void Tick(float DeltaTime) override;
 };
 

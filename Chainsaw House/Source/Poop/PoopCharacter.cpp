@@ -13,6 +13,8 @@
 #include "XRMotionControllerBase.h" // for FXRMotionControllerBase::RightHandSourceId
 #include "Runtime/Engine/Classes/GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "Engine/World.h"
+#include "DrawDebugHelpers.h"
 #include "Enemy.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogFPChar, Warning, All);
@@ -88,6 +90,8 @@ APoopCharacter::APoopCharacter()
 
 	GetCharacterMovement()->MaxWalkSpeed *= 0.33f;
 	SprintSpeedMultiplier = 3.0f;
+
+	RayCollisionParams.AddIgnoredActor(this);
 }
 
 void APoopCharacter::BeginPlay()
@@ -129,7 +133,7 @@ void APoopCharacter::SetupPlayerInputComponent(class UInputComponent* PlayerInpu
 	PlayerInputComponent->BindAction("Jump", IE_Released, this, &ACharacter::StopJumping);
 
 	// Bind fire event
-	PlayerInputComponent->BindAction("Fire", IE_Pressed, this, &APoopCharacter::OnFire);
+	//PlayerInputComponent->BindAction("Fire", IE_Pressed, this, &APoopCharacter::OnFire);
 
 	// Enable touchscreen input
 	EnableTouchscreenMovement(PlayerInputComponent);
@@ -138,6 +142,7 @@ void APoopCharacter::SetupPlayerInputComponent(class UInputComponent* PlayerInpu
 
 	// Bind movement events
 	PlayerInputComponent->BindAxis("MoveForward", this, &APoopCharacter::MoveForward);
+	PlayerInputComponent->BindAction("MoveForward", IE_Released, this, &APoopCharacter::StoppedMovingForward);
 	PlayerInputComponent->BindAxis("MoveRight", this, &APoopCharacter::MoveRight);
 
 	// We have 2 versions of the rotation bindings to handle different kinds of devices differently
@@ -150,6 +155,9 @@ void APoopCharacter::SetupPlayerInputComponent(class UInputComponent* PlayerInpu
 
 	PlayerInputComponent->BindAction("Sprint", IE_Pressed, this, &APoopCharacter::Sprint);
 	PlayerInputComponent->BindAction("Sprint", IE_Released, this, &APoopCharacter::StopSprinting);
+
+	PlayerInputComponent->BindAction("Interact", IE_Pressed, this, &APoopCharacter::Interact);
+	PlayerInputComponent->BindAction("Interact", IE_Released, this, &APoopCharacter::StopInteract);
 }
 
 void APoopCharacter::OnFire()
@@ -182,22 +190,6 @@ void APoopCharacter::OnFire()
 		}
 	}
 
-	// try and play the sound if specified
-	if (FireSound != NULL)
-	{
-		UGameplayStatics::PlaySoundAtLocation(this, FireSound, GetActorLocation());
-	}
-
-	// try and play a firing animation if specified
-	if (FireAnimation != NULL)
-	{
-		// Get the animation object for the arms mesh
-		UAnimInstance* AnimInstance = Mesh1P->GetAnimInstance();
-		if (AnimInstance != NULL)
-		{
-			AnimInstance->Montage_Play(FireAnimation, 1.f);
-		}
-	}
 }
 
 void APoopCharacter::OnResetVR()
@@ -272,9 +264,14 @@ void APoopCharacter::MoveForward(float Value)
 {
 	if (Value != 0.0f)
 	{
+		LastPlayerLocation = this->GetActorLocation();
 		// add movement in that direction
-
 		AddMovementInput(GetActorForwardVector(), Value);
+		IsMoving = true;
+	}
+	else
+	{
+		IsMoving = false;
 	}
 }
 
@@ -295,6 +292,33 @@ void APoopCharacter::Sprint()
 void APoopCharacter::StopSprinting()
 {
 	GetCharacterMovement()->MaxWalkSpeed /= SprintSpeedMultiplier;
+}
+
+void APoopCharacter::Interact()
+{
+	FVector ForwardVector = this->GetFirstPersonCameraComponent()->GetForwardVector();
+	FVector Start = this->GetFirstPersonCameraComponent()->GetComponentTransform().GetLocation();
+	//Start.X -= 0.01;
+	float len = 200.0f;
+	FVector End = (ForwardVector * len) + Start;
+	//DrawDebugLine(GetWorld(), Start, End, FColor(255, 0, 0), true, 1.0f);
+
+	if (GetWorld()->LineTraceSingleByChannel(HitStruct, Start, End, ECC_WorldDynamic,RayCollisionParams))
+	{
+		HitActor = HitStruct.GetActor();
+		if (HitActor->GetName().Contains("BPDOOR"))
+		{
+			
+			//FRotator DoorRotation = HitActor->GetActorRotation();
+			//HitActor->SetActorRotation(FMath::Lerp(DoorRotation,FRotator(DoorRotation.Pitch,DoorRotation.Yaw + 90, DoorRotation.Roll),0.05f));
+			IsInteractingWithDoor = true;
+		}
+	}
+}
+
+void APoopCharacter::StopInteract()
+{
+	IsInteractingWithDoor = false;
 }
 
 void APoopCharacter::TurnAtRate(float Rate)
@@ -322,4 +346,39 @@ bool APoopCharacter::EnableTouchscreenMovement(class UInputComponent* PlayerInpu
 	}
 	
 	return false;
+}
+
+void APoopCharacter::MoveDoor()
+{
+
+	float doty = FVector::DotProduct(PlayerLocation - LastPlayerLocation, HitActor->GetActorForwardVector());
+	FRotator DoorRotation = HitActor->GetActorRotation();
+	UE_LOG(LogTemp, Warning, TEXT("%f"), DoorRotation.Yaw);
+	HitActor->SetActorRotation(FMath::Lerp(DoorRotation,FRotator(DoorRotation.Pitch,DoorRotation.Yaw + doty * 15, DoorRotation.Roll),0.05f));
+	if (HitActor->GetActorRotation().Yaw > 90.f)
+	{
+		HitActor->SetActorRotation(FRotator(DoorRotation.Pitch,90,DoorRotation.Roll));
+	}
+	else if (HitActor->GetActorRotation().Yaw < 0)
+	{
+		HitActor->SetActorRotation(FRotator(DoorRotation.Pitch, 0, DoorRotation.Roll));
+	}
+	
+	FVector DoorLocation = HitActor->GetActorLocation();
+}
+
+void APoopCharacter::StoppedMovingForward()
+{
+	UE_LOG(LogTemp, Warning, TEXT("STOP"));
+}
+
+void APoopCharacter::Tick(float DeltaTime)
+{ 
+	Super::Tick(DeltaTime);
+	PlayerLocation = this->GetActorLocation();
+	if (IsInteractingWithDoor == true)
+	{
+		MoveDoor();
+	}
+	LastPlayerLocation = PlayerLocation;
 }

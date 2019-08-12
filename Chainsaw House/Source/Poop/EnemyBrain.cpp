@@ -281,7 +281,7 @@ void UEnemyBrain::TickComponent(float DeltaTime, ELevelTick TickType, FActorComp
 					NodeStart = &nodes[EnemyY * GridWidth + EnemyX + EnemyFloor * GridWidth * GridHeight];
 					NodeEnd = &nodes[PlayerY * GridWidth + PlayerX + PlayerZ * GridWidth * GridHeight];
 					//DrawDebugSphere(GetWorld(), FVector(NodeEnd->x, NodeEnd->y, NodeEnd->z), 6, 4, FColor(255, 0, 0), true);
-					SolveThetaStar();
+					//SolveThetaStar();
 
 				}
 													///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
