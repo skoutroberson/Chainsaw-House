@@ -16,6 +16,7 @@
 #include "Engine/World.h"
 #include "DrawDebugHelpers.h"
 #include "Enemy.h"
+#include "Runtime/Core/Public/Math/UnrealMathUtility.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogFPChar, Warning, All);
 
@@ -118,6 +119,7 @@ void APoopCharacter::BeginPlay()
 	//FRotator Rotation(0.0f, 0.0f, 0.0f);
 	//FActorSpawnParameters SpawnInfo;
 	//GetWorld()->SpawnActor<AEnemy>(Location, Rotation, SpawnInfo);
+	Player = GetWorld()->GetFirstPlayerController()->GetPawn();
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -262,25 +264,26 @@ void APoopCharacter::EndTouch(const ETouchIndex::Type FingerIndex, const FVector
 
 void APoopCharacter::MoveForward(float Value)
 {
-	if (Value != 0.0f)
+	if (IsInteracting == false)
 	{
-		LastPlayerLocation = this->GetActorLocation();
-		// add movement in that direction
-		AddMovementInput(GetActorForwardVector(), Value);
-		IsMoving = true;
-	}
-	else
-	{
-		IsMoving = false;
+		if (Value != 0.0f)
+		{
+			LastPlayerLocation = this->GetActorLocation();
+			// add movement in that direction
+			AddMovementInput(GetActorForwardVector(), Value);
+		}
 	}
 }
 
 void APoopCharacter::MoveRight(float Value)
 {
-	if (Value != 0.0f)
+	if (IsInteracting == false)
 	{
-		// add movement in that direction
-		AddMovementInput(GetActorRightVector(), Value);
+		if (Value != 0.0f)
+		{
+			// add movement in that direction
+			AddMovementInput(GetActorRightVector(), Value);
+		}
 	}
 }
 
@@ -306,19 +309,35 @@ void APoopCharacter::Interact()
 	if (GetWorld()->LineTraceSingleByChannel(HitStruct, Start, End, ECC_WorldDynamic,RayCollisionParams))
 	{
 		HitActor = HitStruct.GetActor();
-		if (HitActor->GetName().Contains("BPDOOR"))
+		if (HitStruct.GetComponent()->GetName() == "Doorknob")
 		{
+			Doorknob = HitStruct.GetComponent();
+			KnobStartingLoc = Doorknob->GetComponentLocation();
+			IsInteracting = true;
+			MoveToDoor = true;
+			IsInteractingWithDoor = true;
+			HitDoor = HitActor->GetRootComponent()->GetChildComponent(0);
+
+			//DoorStartingRotation = HitActor->GetRootComponent()->GetChildComponent(0)->GetComponentRotation();
+			//FRotator FrameRotation = HitActor->GetActorRotation();
 			
+			//FRotator DoorRotation = HitDoor->GetComponentRotation();
+
+
 			//FRotator DoorRotation = HitActor->GetActorRotation();
 			//HitActor->SetActorRotation(FMath::Lerp(DoorRotation,FRotator(DoorRotation.Pitch,DoorRotation.Yaw + 90, DoorRotation.Roll),0.05f));
-			IsInteractingWithDoor = true;
+			//IsInteractingWithDoor = true;
 		}
 	}
 }
 
 void APoopCharacter::StopInteract()
 {
-	IsInteractingWithDoor = false;
+	IsInteracting = false;
+	if(IsInteractingWithDoor == true)
+		IsInteractingWithDoor = false;
+	if (MoveToDoor == true)
+		MoveToDoor = false;
 }
 
 void APoopCharacter::TurnAtRate(float Rate)
@@ -348,23 +367,17 @@ bool APoopCharacter::EnableTouchscreenMovement(class UInputComponent* PlayerInpu
 	return false;
 }
 
-void APoopCharacter::MoveDoor()
+void APoopCharacter::MoveDoor(float DeltaTime)
 {
 
-	float doty = FVector::DotProduct(PlayerLocation - LastPlayerLocation, HitActor->GetActorForwardVector());
-	FRotator DoorRotation = HitActor->GetActorRotation();
-	UE_LOG(LogTemp, Warning, TEXT("%f"), DoorRotation.Yaw);
-	HitActor->SetActorRotation(FMath::Lerp(DoorRotation,FRotator(DoorRotation.Pitch,DoorRotation.Yaw + doty * 15, DoorRotation.Roll),0.05f));
-	if (HitActor->GetActorRotation().Yaw > 90.f)
-	{
-		HitActor->SetActorRotation(FRotator(DoorRotation.Pitch,90,DoorRotation.Roll));
-	}
-	else if (HitActor->GetActorRotation().Yaw < 0)
-	{
-		HitActor->SetActorRotation(FRotator(DoorRotation.Pitch, 0, DoorRotation.Roll));
-	}
-	
-	FVector DoorLocation = HitActor->GetActorLocation();
+	//DoorMovement = FVector::DotProduct((PlayerLocation - LastPlayerLocation) / DeltaTime, HitActor->GetActorForwardVector());
+
+	FRotator DoorRotation = HitDoor->GetComponentRotation();
+	FRotator FrameRotation = HitActor->GetActorRotation();
+	//UE_LOG(LogTemp, Warning, TEXT("%f"), DeltaTime * doty);
+	//HitDoor->SetWorldRotation(FMath::Lerp(DoorRotation,FRotator(DoorRotation.Pitch,DoorRotation.Yaw + doty, DoorRotation.Roll),6 * DeltaTime));
+	//HitDoor->SetWorldRotation(FMath::Lerp(DoorRotation, FRotator(DoorRotation.Pitch, DoorRotation.Yaw + doty * DeltaTime * 15, DoorRotation.Roll), 0.05f));
+	//HitDoor->AddLocalRotation(FRotator(DoorRotation.Pitch, FMath::FInterpTo(DoorRotation.Yaw, DoorRotation.Yaw + doty * DeltaTime,DeltaTime,0.05f), DoorRotation.Roll));
 }
 
 void APoopCharacter::StoppedMovingForward()
@@ -372,13 +385,64 @@ void APoopCharacter::StoppedMovingForward()
 	UE_LOG(LogTemp, Warning, TEXT("STOP"));
 }
 
+void APoopCharacter::InterpToDoor()
+{
+	//UE_LOG(LogTemp, Warning, TEXT("%f"), HitActor->GetActorRotation().Yaw);
+	if (Player->GetActorLocation().Equals(HitActor->GetActorLocation(),0.01f))
+	{
+		MoveToDoor = false;
+	}
+	else
+	{
+		if (Doorknob != HitStruct.GetComponent())
+			Doorknob = HitStruct.GetComponent();
+		
+		float DotProd = FVector::DotProduct(Doorknob->GetForwardVector(), Player->GetActorForwardVector());
+		UE_LOG(LogTemp, Warning, TEXT("%f"), DotProd);
+
+		float FrameRotation = (HitActor->GetActorRotation().Yaw + 180) * (PI / 180);
+		float DeltaX = cosf(FrameRotation) * 50;
+		float DeltaY = sinf(FrameRotation) * 50;
+
+		if (DotProd < 0)
+		{
+			KnobInterpLoc = FVector(KnobStartingLoc.X - DeltaX, KnobStartingLoc.Y - DeltaY, Player->GetActorLocation().Z);
+		}
+		else if(DotProd > 0)
+		{
+			KnobInterpLoc = FVector(KnobStartingLoc.X + DeltaX, KnobStartingLoc.Y + DeltaY, Player->GetActorLocation().Z);
+		}
+
+		DrawDebugSphere(GetWorld(), KnobStartingLoc, 20, 10, FColor(0, 255, 255), false, 0.1f);
+		//FVector InterpLocation = FVector(Doorknob->GetComponentLocation().X,Doorknob->GetComponentLocation().Y,Player->GetActorLocation().Z);
+		Player->SetActorLocation(UKismetMathLibrary::VInterpTo(Player->GetActorLocation(), KnobInterpLoc, GetWorld()->GetDeltaSeconds(), 4.0f));
+	}
+}
+
+bool APoopCharacter::GetIsInteractingWithDoor()
+{
+	return IsInteractingWithDoor;
+}
+
+AActor * APoopCharacter::GetDoorInteractingWith()
+{
+	return HitActor;
+}
+
+UPrimitiveComponent * APoopCharacter::GetDoorknob()
+{
+	return Doorknob;
+}
+
 void APoopCharacter::Tick(float DeltaTime)
 { 
 	Super::Tick(DeltaTime);
-	PlayerLocation = this->GetActorLocation();
-	if (IsInteractingWithDoor == true)
+	PlayerLocation = Player->GetActorLocation();
+	
+	if (MoveToDoor == true)
 	{
-		MoveDoor();
+		InterpToDoor();
 	}
+
 	LastPlayerLocation = PlayerLocation;
 }

@@ -149,15 +149,32 @@ public:
 
 	FHitResult HitStruct = FHitResult(ForceInit); ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	FCollisionQueryParams RayCollisionParams;
-	AActor* HitActor;
-
-	FVector LastPlayerLocation;
-	FVector PlayerLocation;
-	bool IsInteractingWithDoor = false;
+	AActor* HitActor = nullptr;
+	USceneComponent* HitDoor = nullptr;
+	AActor* Player = nullptr;
+	FVector LastPlayerLocation = FVector(0, 0, 0);;
+	FVector PlayerLocation = FVector(0, 0, 0);;
 	bool IsMoving = false;
-	void MoveDoor();
 	void StoppedMovingForward();
 
+	void MoveDoor(float DeltaTime);
+	FRotator DoorStartingRotation = FRotator(0,0,0);
+	float DoorMovement;
+	void InterpToDoor();
+	bool MoveToDoor = false;
+	UPrimitiveComponent* Doorknob;
+	FVector KnobInterpLoc = FVector(0, 0, 0);
+	FVector KnobStartingLoc = FVector(0, 0, 0);
+
+	bool GetIsInteractingWithDoor();
+	AActor* GetDoorInteractingWith();
+	bool IsInteracting = false;
+	UPrimitiveComponent* GetDoorknob();
+	TArray<FOverlapInfo> OutOverlaps;
+
 	public: virtual void Tick(float DeltaTime) override;
+
+	private:
+		bool IsInteractingWithDoor = false;
 };
 
