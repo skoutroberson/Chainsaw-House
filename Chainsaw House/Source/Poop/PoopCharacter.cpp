@@ -17,6 +17,7 @@
 #include "DrawDebugHelpers.h"
 #include "Enemy.h"
 #include "Runtime/Core/Public/Math/UnrealMathUtility.h"
+#include "Runtime/Engine/Classes/Camera/PlayerCameraManager.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogFPChar, Warning, All);
 
@@ -32,6 +33,14 @@ APoopCharacter::APoopCharacter()
 	BaseTurnRate = 45.f;
 	BaseLookUpRate = 45.f;
 
+	//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	/////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Create a CameraComponent	
 	FirstPersonCameraComponent = CreateDefaultSubobject<UCameraComponent>(TEXT("FirstPersonCamera"));
 	FirstPersonCameraComponent->SetupAttachment(GetCapsuleComponent());
@@ -120,6 +129,18 @@ void APoopCharacter::BeginPlay()
 	//FActorSpawnParameters SpawnInfo;
 	//GetWorld()->SpawnActor<AEnemy>(Location, Rotation, SpawnInfo);
 	Player = GetWorld()->GetFirstPlayerController()->GetPawn();
+	// This line will only work if the player components dont change order!
+	PlayerCam = Player->GetRootComponent()->GetChildComponent(2);
+
+	APlayerController* PlayerController = GetWorld()->GetFirstPlayerController();
+	//PlayerController->SetIgnoreLookInput(true);
+	//
+	//UE_LOG(LogTemp, Warning, TEXT("FUCK"));
+	//GetWorld()->GetFirstPlayerController()->GetPawn()->SetActorRotation(FRotator(0, 52, 0));
+	//Player->GetRootComponent()->GetChildComponent(2)->SetWorldRotation(FRotator(32, 95, 0));
+	//PlayerController->SetControlRotation(FRotator(0, 83, 32));
+	
+	UE_LOG(LogTemp, Warning, TEXT("%f"),this->GetActorRotation().Yaw);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -151,8 +172,10 @@ void APoopCharacter::SetupPlayerInputComponent(class UInputComponent* PlayerInpu
 	// "turn" handles devices that provide an absolute delta, such as a mouse.
 	// "turnrate" is for devices that we choose to treat as a rate of change, such as an analog joystick
 	PlayerInputComponent->BindAxis("Turn", this, &APawn::AddControllerYawInput);
-	PlayerInputComponent->BindAxis("TurnRate", this, &APoopCharacter::TurnAtRate);
 	PlayerInputComponent->BindAxis("LookUp", this, &APawn::AddControllerPitchInput);
+
+
+	PlayerInputComponent->BindAxis("TurnRate", this, &APoopCharacter::TurnAtRate);
 	PlayerInputComponent->BindAxis("LookUpRate", this, &APoopCharacter::LookUpAtRate);
 
 	PlayerInputComponent->BindAction("Sprint", IE_Pressed, this, &APoopCharacter::Sprint);
@@ -338,6 +361,10 @@ void APoopCharacter::StopInteract()
 		IsInteractingWithDoor = false;
 	if (MoveToDoor == true)
 		MoveToDoor = false;
+	if (GetWorld()->GetFirstPlayerController()->IsLookInputIgnored())
+	{
+		GetWorld()->GetFirstPlayerController()->SetIgnoreLookInput(false);
+	}
 }
 
 void APoopCharacter::TurnAtRate(float Rate)
@@ -387,18 +414,27 @@ void APoopCharacter::StoppedMovingForward()
 
 void APoopCharacter::InterpToDoor()
 {
-	//UE_LOG(LogTemp, Warning, TEXT("%f"), HitActor->GetActorRotation().Yaw);
-	if (Player->GetActorLocation().Equals(HitActor->GetActorLocation(),0.01f))
+	//	If player is at KnobInterpLoc then do the next step in the interacting with door process...
+	if (Player->GetActorLocation().Equals(KnobInterpLoc,0.01f))
 	{
 		MoveToDoor = false;
 	}
 	else
 	{
+		//	Disable player from looking around while interacting with a door
+		if (!GetWorld()->GetFirstPlayerController()->IsLookInputIgnored())
+		{
+			GetWorld()->GetFirstPlayerController()->SetIgnoreLookInput(true);
+		}
+		
 		if (Doorknob != HitStruct.GetComponent())
 			Doorknob = HitStruct.GetComponent();
 		
 		float DotProd = FVector::DotProduct(Doorknob->GetForwardVector(), Player->GetActorForwardVector());
-		UE_LOG(LogTemp, Warning, TEXT("%f"), DotProd);
+		//UE_LOG(LogTemp, Warning, TEXT("%f"), DotProd);
+
+		FRotator FPCamera = PlayerCam->GetComponentRotation();
+		UE_LOG(LogTemp, Warning, TEXT("%f %f %f"), FPCamera.Pitch, FPCamera.Roll, FPCamera.Yaw);
 
 		float FrameRotation = (HitActor->GetActorRotation().Yaw + 180) * (PI / 180);
 		float DeltaX = cosf(FrameRotation) * 50;
@@ -415,7 +451,13 @@ void APoopCharacter::InterpToDoor()
 
 		DrawDebugSphere(GetWorld(), KnobStartingLoc, 20, 10, FColor(0, 255, 255), false, 0.1f);
 		//FVector InterpLocation = FVector(Doorknob->GetComponentLocation().X,Doorknob->GetComponentLocation().Y,Player->GetActorLocation().Z);
-		Player->SetActorLocation(UKismetMathLibrary::VInterpTo(Player->GetActorLocation(), KnobInterpLoc, GetWorld()->GetDeltaSeconds(), 4.0f));
+		Player->SetActorLocation(UKismetMathLibrary::VInterpTo(Player->GetActorLocation(), KnobInterpLoc, GetWorld()->GetDeltaSeconds(), 5.0f));
+		float PlayerCamPitch = PlayerCam->GetComponentRotation().Pitch;
+		FRotator DoorCam = FRotator(PlayerCamPitch,0,0);
+		FRotator PlayerCamRotation = PlayerCam->GetComponentRotation();
+		//Player->SetActorRotation(FMath::Lerp(Player->GetActorRotation(), FRotator(Player->GetActorRotation().Pitch, 0, 0), 0.5));
+		//PlayerCam->SetRelativeRotation(FMath::Lerp(PlayerCamRotation, FRotator(PlayerCamPitch, 0, 0), 1));
+		
 	}
 }
 

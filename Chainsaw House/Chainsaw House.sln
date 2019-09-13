@@ -52,8 +52,8 @@ Global
 		{9388BF0E-9A2A-4476-8049-EB606584AAD4}.Shipping|Win64.ActiveCfg = BuiltWithUnrealBuildTool|Win32
 		{11006450-078D-4395-BC6D-6D3BC48B2A59}.DebugGame Editor|HTML5.ActiveCfg = Invalid|Win32
 		{11006450-078D-4395-BC6D-6D3BC48B2A59}.DebugGame Editor|Win32.ActiveCfg = Invalid|Win32
-		{11006450-078D-4395-BC6D-6D3BC48B2A59}.DebugGame Editor|Win64.ActiveCfg = DebugGame_Editor|x64
-		{11006450-078D-4395-BC6D-6D3BC48B2A59}.DebugGame Editor|Win64.Build.0 = DebugGame_Editor|x64
+		{11006450-078D-4395-BC6D-6D3BC48B2A59}.DebugGame Editor|Win64.ActiveCfg = Development_Editor|x64
+		{11006450-078D-4395-BC6D-6D3BC48B2A59}.DebugGame Editor|Win64.Build.0 = Development_Editor|x64
 		{11006450-078D-4395-BC6D-6D3BC48B2A59}.DebugGame|HTML5.ActiveCfg = HTML5_DebugGame|Win32
 		{11006450-078D-4395-BC6D-6D3BC48B2A59}.DebugGame|HTML5.Build.0 = HTML5_DebugGame|Win32
 		{11006450-078D-4395-BC6D-6D3BC48B2A59}.DebugGame|Win32.ActiveCfg = DebugGame|Win32
@@ -83,5 +83,8 @@ Global
 	GlobalSection(NestedProjects) = preSolution
 		{9388BF0E-9A2A-4476-8049-EB606584AAD4} = {2FDB9CB2-9521-4C44-B806-BD3A5A47975F}
 		{11006450-078D-4395-BC6D-6D3BC48B2A59} = {CD54E053-1B7B-4B65-858B-912FFEBDF7A5}
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {FE41EA61-4DF5-41FD-AB59-6FBBD55D88D6}
 	EndGlobalSection
 EndGlobal

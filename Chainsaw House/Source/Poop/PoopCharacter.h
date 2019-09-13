@@ -152,6 +152,7 @@ public:
 	AActor* HitActor = nullptr;
 	USceneComponent* HitDoor = nullptr;
 	AActor* Player = nullptr;
+	USceneComponent* PlayerCam = nullptr;
 	FVector LastPlayerLocation = FVector(0, 0, 0);;
 	FVector PlayerLocation = FVector(0, 0, 0);;
 	bool IsMoving = false;
@@ -165,6 +166,7 @@ public:
 	UPrimitiveComponent* Doorknob;
 	FVector KnobInterpLoc = FVector(0, 0, 0);
 	FVector KnobStartingLoc = FVector(0, 0, 0);
+	bool IsInteractingWithDoor = false;
 
 	bool GetIsInteractingWithDoor();
 	AActor* GetDoorInteractingWith();
@@ -175,6 +177,6 @@ public:
 	public: virtual void Tick(float DeltaTime) override;
 
 	private:
-		bool IsInteractingWithDoor = false;
+		
 };
 
