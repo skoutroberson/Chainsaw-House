@@ -124,23 +124,26 @@ void APoopCharacter::BeginPlay()
 		Mesh1P->SetHiddenInGame(false, true);
 	}
 
+	Player = GetWorld()->GetFirstPlayerController()->GetPawn();
 	//FVector Location(61.0f, 976.0f, 300.0f);
 	//FRotator Rotation(0.0f, 0.0f, 0.0f);
 	//FActorSpawnParameters SpawnInfo;
 	//GetWorld()->SpawnActor<AEnemy>(Location, Rotation, SpawnInfo);
-	Player = GetWorld()->GetFirstPlayerController()->GetPawn();
 	// This line will only work if the player components dont change order!
-	PlayerCam = Player->GetRootComponent()->GetChildComponent(2);
+	//PlayerCam = Player->GetRootComponent()->GetChildComponent(2);
 
-	APlayerController* PlayerController = GetWorld()->GetFirstPlayerController();
+	
 	//PlayerController->SetIgnoreLookInput(true);
 	//
 	//UE_LOG(LogTemp, Warning, TEXT("FUCK"));
 	//GetWorld()->GetFirstPlayerController()->GetPawn()->SetActorRotation(FRotator(0, 52, 0));
 	//Player->GetRootComponent()->GetChildComponent(2)->SetWorldRotation(FRotator(32, 95, 0));
-	//PlayerController->SetControlRotation(FRotator(0, 83, 32));
-	
-	UE_LOG(LogTemp, Warning, TEXT("%f"),this->GetActorRotation().Yaw);
+
+	//UE_LOG(LogTemp, Warning, TEXT("%f"),this->GetActorRotation().Yaw);
+
+	PlayerYawScale = GetWorld()->GetFirstPlayerController()->InputYawScale;
+	PlayerPitchScale = GetWorld()->GetFirstPlayerController()->InputPitchScale;
+	UE_LOG(LogTemp, Warning, TEXT("%f %f yo whaddup"), PlayerYawScale, PlayerPitchScale);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -414,47 +417,63 @@ void APoopCharacter::StoppedMovingForward()
 
 void APoopCharacter::InterpToDoor()
 {
+	APlayerController* PlayerController = GetWorld()->GetFirstPlayerController();
+	//PlayerController->InputYawScale = 0;
+	//PlayerController->InputPitchScale = 0;
+	//PlayerController->SetControlRotation(FRotator(0, 83, 32));
+
 	//	If player is at KnobInterpLoc then do the next step in the interacting with door process...
-	if (Player->GetActorLocation().Equals(KnobInterpLoc,0.01f))
+	if (Player->GetActorLocation().Equals(KnobInterpLoc,10.0f))
 	{
 		MoveToDoor = false;
 	}
 	else
 	{
-		//	Disable player from looking around while interacting with a door
 		if (!GetWorld()->GetFirstPlayerController()->IsLookInputIgnored())
 		{
 			GetWorld()->GetFirstPlayerController()->SetIgnoreLookInput(true);
 		}
 		
+		//	Set code to target only the doorknob the player is interacting with
 		if (Doorknob != HitStruct.GetComponent())
 			Doorknob = HitStruct.GetComponent();
 		
-		float DotProd = FVector::DotProduct(Doorknob->GetForwardVector(), Player->GetActorForwardVector());
+		float DotProd = FVector::DotProduct(HitActor->GetActorForwardVector(), Player->GetActorForwardVector());
 		//UE_LOG(LogTemp, Warning, TEXT("%f"), DotProd);
 
-		FRotator FPCamera = PlayerCam->GetComponentRotation();
-		UE_LOG(LogTemp, Warning, TEXT("%f %f %f"), FPCamera.Pitch, FPCamera.Roll, FPCamera.Yaw);
+		//FRotator FPCamera = PlayerCam->GetComponentRotation();
+		//UE_LOG(LogTemp, Warning, TEXT("%f %f %f"), FPCamera.Pitch, FPCamera.Roll, FPCamera.Yaw);
 
 		float FrameRotation = (HitActor->GetActorRotation().Yaw + 180) * (PI / 180);
-		float DeltaX = cosf(FrameRotation) * 50;
-		float DeltaY = sinf(FrameRotation) * 50;
+		float FrameYaw = HitActor->GetActorRotation().Yaw + 180;
+		//float PlayerYaw = Player->GetActorRotation().Yaw + 180;
+		float DeltaX = cosf(FrameRotation) * 30;
+		float DeltaY = sinf(FrameRotation) * 30;
+
+		//UE_LOG(LogTemp, Warning, TEXT("%f %f %f"), FrameYaw, PlayerYaw, DotProd);
+		
+
+		//PlayerController->SetControlRotation(FMath::Lerp(Player->GetActorRotation(), FRotator(0, 90 - (PlayerYaw - FrameYaw), 0), 0.03f));
 
 		if (DotProd < 0)
 		{
 			KnobInterpLoc = FVector(KnobStartingLoc.X - DeltaX, KnobStartingLoc.Y - DeltaY, Player->GetActorLocation().Z);
+			//PlayerController->SetControlRotation(FRotator(0, FrameRotation + 180, 0));
+			PlayerController->SetControlRotation(FMath::Lerp(PlayerController->GetControlRotation(), FRotator(0, FrameYaw, 0), 0.06f));
 		}
 		else if(DotProd > 0)
 		{
 			KnobInterpLoc = FVector(KnobStartingLoc.X + DeltaX, KnobStartingLoc.Y + DeltaY, Player->GetActorLocation().Z);
+			//PlayerController->SetControlRotation(FRotator(0, FrameRotation - 180, 0));
+			PlayerController->SetControlRotation(FMath::Lerp(PlayerController->GetControlRotation(), FRotator(0, FrameYaw + 180, 0), 0.06f));
 		}
 
 		DrawDebugSphere(GetWorld(), KnobStartingLoc, 20, 10, FColor(0, 255, 255), false, 0.1f);
 		//FVector InterpLocation = FVector(Doorknob->GetComponentLocation().X,Doorknob->GetComponentLocation().Y,Player->GetActorLocation().Z);
 		Player->SetActorLocation(UKismetMathLibrary::VInterpTo(Player->GetActorLocation(), KnobInterpLoc, GetWorld()->GetDeltaSeconds(), 5.0f));
-		float PlayerCamPitch = PlayerCam->GetComponentRotation().Pitch;
-		FRotator DoorCam = FRotator(PlayerCamPitch,0,0);
-		FRotator PlayerCamRotation = PlayerCam->GetComponentRotation();
+		//float PlayerCamPitch = PlayerCam->GetComponentRotation().Pitch;
+		//FRotator DoorCam = FRotator(PlayerCamPitch,0,0);
+		//FRotator PlayerCamRotation = PlayerCam->GetComponentRotation();
 		//Player->SetActorRotation(FMath::Lerp(Player->GetActorRotation(), FRotator(Player->GetActorRotation().Pitch, 0, 0), 0.5));
 		//PlayerCam->SetRelativeRotation(FMath::Lerp(PlayerCamRotation, FRotator(PlayerCamPitch, 0, 0), 1));
 		

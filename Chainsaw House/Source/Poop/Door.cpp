@@ -33,7 +33,7 @@ void ADoor::Tick(float DeltaTime)
 			if (FVector(CurrentDoorknob->GetComponentLocation() - Player->GetActorLocation()).Size() < 50)
 			{
 				FRotator DoorRotation = CurrentDoor->GetComponentRotation();
-				CurrentDoor->SetWorldRotation(FMath::Lerp(DoorRotation, FRotator(DoorRotation.Pitch, DoorRotation.Yaw + 15, DoorRotation.Roll), DeltaTime));
+				CurrentDoor->SetWorldRotation(FMath::Lerp(DoorRotation, FRotator(DoorRotation.Pitch, DoorRotation.Yaw + 25, DoorRotation.Roll), DeltaTime));
 			}
 		}
 	}

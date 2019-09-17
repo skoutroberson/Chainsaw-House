@@ -158,6 +158,9 @@ public:
 	bool IsMoving = false;
 	void StoppedMovingForward();
 
+	float PlayerYawScale;
+	float PlayerPitchScale;
+
 	void MoveDoor(float DeltaTime);
 	FRotator DoorStartingRotation = FRotator(0,0,0);
 	float DoorMovement;
