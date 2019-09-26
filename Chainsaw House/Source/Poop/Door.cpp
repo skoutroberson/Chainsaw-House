@@ -27,13 +27,49 @@ void ADoor::Tick(float DeltaTime)
 	{
 		if (this == Player->GetDoorInteractingWith())
 		{
+			if(Player->MoveToDoor == false) // bad practice, just doing this to prototype
+			{ 
+			PlayerLocation = Player->GetActorLocation();
 			CurrentDoor = Player->GetDoorInteractingWith()->GetRootComponent()->GetChildComponent(0);
+
+			//	I FEEL LIKE THIS IS A STUPID STUPID WAY TO GET DOOR KNOB BUT MAYBE NOT.....
 			CurrentDoorknob = Player->GetDoorknob();
+
 			//UE_LOG(LogTemp, Warning, TEXT("%f %f"), CurrentDoorknob->GetComponentLocation().X, Player->GetActorLocation().X);
 			if (FVector(CurrentDoorknob->GetComponentLocation() - Player->GetActorLocation()).Size() < 50)
 			{
+				float PositionDot = FVector::DotProduct(Player->GetActorForwardVector(), CurrentDoorknob->GetForwardVector());
+				float PlayerSpeed = FVector::Dist(PlayerLocation, LastPlayerLocation) * 10;
+				//UE_LOG(LogTemp, Warning, TEXT("%f poo"), 10 * FVector::Dist(PlayerLocation, LastPlayerLocation));
 				FRotator DoorRotation = CurrentDoor->GetComponentRotation();
-				CurrentDoor->SetWorldRotation(FMath::Lerp(DoorRotation, FRotator(DoorRotation.Pitch, DoorRotation.Yaw + 25, DoorRotation.Roll), DeltaTime));
+				if (PositionDot > 0)
+				{
+					CurrentDoor->SetWorldRotation(FMath::Lerp(DoorRotation, FRotator(DoorRotation.Pitch, DoorRotation.Yaw + (12 * PlayerSpeed), DoorRotation.Roll), DeltaTime));
+				}
+				else 
+				{
+					CurrentDoor->SetWorldRotation(FMath::Lerp(DoorRotation, FRotator(DoorRotation.Pitch, DoorRotation.Yaw - (12 * PlayerSpeed), DoorRotation.Roll), DeltaTime));
+				}
+				LastPlayerLocation = PlayerLocation;
+				
+			}
+			else if (FVector(CurrentDoorknob->GetComponentLocation() - Player->GetActorLocation()).Size() > 50)
+			{
+				float PositionDot = FVector::DotProduct(Player->GetActorForwardVector(), CurrentDoorknob->GetForwardVector());
+				float PlayerSpeed = FVector::Dist(PlayerLocation, LastPlayerLocation) * 10;
+				//UE_LOG(LogTemp, Warning, TEXT("%f poo"), 10 * FVector::Dist(PlayerLocation, LastPlayerLocation));
+				FRotator DoorRotation = CurrentDoor->GetComponentRotation();
+				if (PositionDot > 0)
+				{
+					CurrentDoor->SetWorldRotation(FMath::Lerp(DoorRotation, FRotator(DoorRotation.Pitch, DoorRotation.Yaw - (12 * PlayerSpeed), DoorRotation.Roll), DeltaTime));
+				}
+				else
+				{
+					CurrentDoor->SetWorldRotation(FMath::Lerp(DoorRotation, FRotator(DoorRotation.Pitch, DoorRotation.Yaw + (12 * PlayerSpeed), DoorRotation.Roll), DeltaTime));
+				}
+				LastPlayerLocation = PlayerLocation;
+			}
+			LastPlayerLocation = PlayerLocation;
 			}
 		}
 	}

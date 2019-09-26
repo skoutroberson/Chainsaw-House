@@ -164,8 +164,16 @@ public:
 	void MoveDoor(float DeltaTime);
 	FRotator DoorStartingRotation = FRotator(0,0,0);
 	float DoorMovement;
+
+	//////////////////////////	Door Stuff
 	void InterpToDoor();
 	bool MoveToDoor = false;
+
+	void OpenDoor();
+	bool ShouldOpenDoor = false;
+	float MoveValue = 0;
+	/////////////////////////	Door Stuff
+
 	UPrimitiveComponent* Doorknob;
 	FVector KnobInterpLoc = FVector(0, 0, 0);
 	FVector KnobStartingLoc = FVector(0, 0, 0);

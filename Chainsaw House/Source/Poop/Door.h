@@ -34,8 +34,10 @@ public:
 	float DoorAngle;
 	float FrameAngle;
 	USceneComponent* DoorComponent;
-	FVector PlayerLocation;
-	FVector LastPlayerLocation;
+
+	FVector PlayerLocation = FVector(0, 0, 0);
+	FVector LastPlayerLocation = FVector(0, 0, 0);
+
 	UPrimitiveComponent* CurrentDoorknob = nullptr;
 	TArray<FOverlapInfo> OutOverlaps;
 	
