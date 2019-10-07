@@ -28,12 +28,17 @@ public:
 	void CheckDoorAngle(AActor* CurrentDoor);
 	int CheckDoorAngleCounter = 0;
 	USceneComponent* CurrentDoor = nullptr;
+	AActor* CurrentDoorActor = nullptr;
 	bool DoorPhysics = false;
-	void DoDoorPhysics(AActor* CurrentDoor);
+	void DoDoorPhysics(USceneComponent* CurrentDoor);
 	float DoorStartingAngle;
 	float DoorAngle;
 	float FrameAngle;
 	USceneComponent* DoorComponent;
+
+	void InterpRotate(USceneComponent* CurrentDoor);
+
+	void PlayerInteractingWithDoor(float DeltaTime);
 
 	FVector PlayerLocation = FVector(0, 0, 0);
 	FVector LastPlayerLocation = FVector(0, 0, 0);

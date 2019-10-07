@@ -100,7 +100,7 @@ protected:
 	void StopSprinting();
 	float SprintSpeedMultiplier;
 	void Interact();
-	void StopInteract();
+	
 	
 
 	/**
@@ -157,6 +157,8 @@ public:
 	FVector PlayerLocation = FVector(0, 0, 0);;
 	bool IsMoving = false;
 	void StoppedMovingForward();
+
+	void StopInteract();
 
 	float PlayerYawScale;
 	float PlayerPitchScale;
