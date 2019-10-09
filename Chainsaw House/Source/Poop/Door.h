@@ -36,7 +36,7 @@ public:
 	float FrameAngle;
 	USceneComponent* DoorComponent;
 
-	void InterpRotate(USceneComponent* CurrentDoor);
+	void SmoothRotate(USceneComponent* CurrentDoor, bool DotProd);
 
 	void PlayerInteractingWithDoor(float DeltaTime);
 
