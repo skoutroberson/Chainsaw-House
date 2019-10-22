@@ -301,7 +301,14 @@ void APoopCharacter::MoveForward(float Value)
 	}
 	else if(ShouldOpenDoor == true)
 	{
-		AddMovementInput(GetActorForwardVector(), Value/4);
+		AddMovementInput(GetActorForwardVector(), Value);
+		//Player->GetVelocity().Size();
+		USceneComponent CurrentDoor = GetDoorInteractingWith()->GetRootComponent()->GetChildComponent(0);
+		//FString DoorName = GetDoorInteractingWith()->GetName();
+
+		//Door = Cast<ADoor>(GetWorld()->GetDefaultSubobjectByName(DoorName));
+
+		//Door->RotateDoor(CurrentDoor, Player->GetVelocity().Size());
 	}
 }
 

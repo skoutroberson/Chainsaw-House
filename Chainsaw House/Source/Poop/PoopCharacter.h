@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
 #include "Engine/World.h"
+#include "Door.h"
 #include "PoopCharacter.generated.h"
 
 class UInputComponent;
@@ -176,6 +177,7 @@ public:
 	float MoveValue = 0;
 	/////////////////////////	Door Stuff
 
+	ADoor* Door;
 	UPrimitiveComponent* Doorknob;
 	FVector KnobInterpLoc = FVector(0, 0, 0);
 	FVector KnobStartingLoc = FVector(0, 0, 0);
